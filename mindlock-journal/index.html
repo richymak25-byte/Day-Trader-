@@ -211,6 +211,7 @@ svg text{fill:var(--muted);font-size:11px;font-family:inherit}
         </select>
         <select id="fSymbol" title="Symbole"></select>
         <select id="fSetup" title="Setup"></select>
+        <select id="fAccount" title="Compte"></select>
         <select id="fSide" title="Sens"><option value="">Long + Short</option><option value="long">Long</option><option value="short">Short</option></select>
       </div>
       <button class="btn" id="importBtn">Importer</button>
@@ -316,7 +317,7 @@ function renderBadge(){
 }
 window.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"&&AB.timer){clearTimeout(AB.timer);runBackup();}});
 
-const UI={view:"dashboard",period:"all",symbol:"",setup:"",side:"",cal:null,sort:{k:"closeTime",d:-1},report:"setup",page:0};
+const UI={view:"dashboard",period:"all",account:"",symbol:"",setup:"",side:"",cal:null,sort:{k:"closeTime",d:-1},report:"setup",page:0};
 
 /* ================================================================ helpers */
 const $=s=>document.querySelector(s);
@@ -367,6 +368,7 @@ const COLS={
   closeTime:["closetime","exittime","exitdate","closedate","datefermeture","heurefermeture","soldtimestamp","closedat"],
   entry:["openprice","entryprice","prixouverture","prixentree","buyprice"],
   exit:["closeprice","exitprice","prixfermeture","prixsortie","sellprice"],
+  account:["account","accountid","accountname","acct","compte","accountnumber","login"],
   pnl:["profit","pnl","pl","netpnl","realizedpnl","profitloss","gain","resultat","netprofit","realizedpl"]
 };
 const norm=s=>String(s==null?"":s).normalize("NFKD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
@@ -382,7 +384,7 @@ function parseTime(v){
   if(v==null)return null;let s=String(v).trim().replace(/,/g," ").replace(/\s+/g," ");if(!s)return null;
   s=s.replace(/\s+(EST|EDT|ET|UTC|GMT|CET|CEST)$/i,"");
   let m;
-  if((m=s.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})(?:[T ](\d{1,2}):(\d{2})(?::(\d{2}))?)?/)))return `${m[1]}-${pad(m[2])}-${pad(m[3])} ${pad(m[4]||0)}:${m[5]||"00"}:${m[6]||"00"}`;
+  if((m=s.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})(?:[T ;](\d{1,2}):(\d{2})(?::(\d{2}))?)?/)))return `${m[1]}-${pad(m[2])}-${pad(m[3])} ${pad(m[4]||0)}:${m[5]||"00"}:${m[6]||"00"}`;
   if((m=s.match(/^(\d{4})(\d{2})(\d{2})[ ;](\d{2}):?(\d{2}):?(\d{2})/)))return `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}`;
   if((m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?/i))){
     let a=+m[1],b=+m[2],y=+m[3];if(y<100)y+=2000;let mo=a,d=b;
@@ -432,7 +434,8 @@ function parseCSV(text,source){
       let fee=0;const fv=parseNum(g(r,"fees")),sv=parseNum(g(r,"swap"));if(fv)fee+=Math.abs(fv);if(sv)fee-=sv;
       let pnl=parseNum(g(r,"pnl"));const mult=multiplier(sym),d=side==="buy"?1:-1;
       if(pnl==null&&entry!=null&&exit!=null)pnl=d*(exit-entry)*qty*mult;if(pnl==null)continue;
-      trades.push({id:tradeId([sym,ot,ct,side,qty,entry]),symbol:sym,side:side==="buy"?"long":"short",qty,entry,exit,openTime:ot,closeTime:ct||ot,fees:+fee.toFixed(2),pnl:+(pnl-fee).toFixed(2),status:"closed",source,multiplier:mult,executions:[]});
+      const acct=String(g(r,"account")||"").trim();
+      trades.push({id:tradeId((acct?[acct]:[]).concat([sym,ot,ct,side,qty,entry])),symbol:sym,account:acct,side:side==="buy"?"long":"short",qty,entry,exit,openTime:ot,closeTime:ct||ot,fees:+fee.toFixed(2),pnl:+(pnl-fee).toFixed(2),status:"closed",source,multiplier:mult,executions:[]});
     }
     return {execs,trades};
   }
@@ -441,19 +444,19 @@ function parseCSV(text,source){
     let side=c.side!=null?parseSide(g(r,"side")||""):null;if(!side&&q!=null&&c.side==null)side=q<0?"sell":"buy";
     let t=g(r,"time");if(c.clock!=null&&c.clock!==c.time&&g(r,"clock"))t=t+" "+g(r,"clock");
     const when=parseTime(t);if(!sym||!side||!q||!price||!when)continue;
-    execs.push({time:when,symbol:sym,side,qty:Math.abs(q),price,fee:Math.abs(parseNum(g(r,"fees"))||0),source});
+    execs.push({time:when,symbol:sym,side,qty:Math.abs(q),price,fee:Math.abs(parseNum(g(r,"fees"))||0),source,account:String(g(r,"account")||"").trim()});
   }
   return {execs,trades};
 }
 function pairExecs(executions){
-  const by={};executions.forEach((e,i)=>(by[e.symbol]=by[e.symbol]||[]).push([e.time,i,e]));
+  const by={};executions.forEach((e,i)=>{const k=(e.account||"")+"\u0001"+e.symbol;(by[k]=by[k]||[]).push([e.time,i,e]);});
   const out=[];
-  for(const [sym,fills] of Object.entries(by)){
+  for(const [key,fills] of Object.entries(by)){const [acct,sym]=key.split("\u0001");
     fills.sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:a[1]-b[1]);const mult=multiplier(sym);let pos=0,cur=null;
     for(const [,,f] of fills){
       let signed=f.side==="buy"?f.qty:-f.qty,feeLeft=f.fee||0;
       while(Math.abs(signed)>1e-9){
-        if(Math.abs(pos)<1e-9)cur={symbol:sym,dir:signed>0?1:-1,openQty:0,openVal:0,closeQty:0,closeVal:0,fees:0,openTime:f.time,closeTime:null,executions:[],source:f.source||"import"};
+        if(Math.abs(pos)<1e-9)cur={symbol:sym,account:acct,dir:signed>0?1:-1,openQty:0,openVal:0,closeQty:0,closeVal:0,fees:0,openTime:f.time,closeTime:null,executions:[],source:f.source||"import"};
         let part;
         if(pos===0||(pos>0)===(signed>0)){part=Math.abs(signed);cur.openQty+=part;cur.openVal+=part*f.price;pos+=signed;signed=0;}
         else{part=Math.min(Math.abs(signed),Math.abs(pos));cur.closeQty+=part;cur.closeVal+=part*f.price;const st=signed>0?part:-part;pos+=st;signed-=st;}
@@ -467,7 +470,7 @@ function pairExecs(executions){
 }
 function finishTrade(c,mult){
   const closed=c.closeTime!=null,side=c.dir>0?"long":"short";
-  return {id:tradeId([c.symbol,c.openTime,side,c.executions[0].price]),symbol:c.symbol,side,qty:+c.openQty.toFixed(6),
+  return {id:tradeId((c.account?[c.account]:[]).concat([c.symbol,c.openTime,side,c.executions[0].price])),symbol:c.symbol,account:c.account||"",side,qty:+c.openQty.toFixed(6),
     entry:c.openQty?+(c.openVal/c.openQty).toFixed(6):null,exit:c.closeQty?+(c.closeVal/c.closeQty).toFixed(6):null,
     openTime:c.openTime,closeTime:c.closeTime,fees:+c.fees.toFixed(2),pnl:closed?+(c.dir*(c.closeVal-c.openVal)*mult-c.fees).toFixed(2):null,
     status:closed?"closed":"open",source:c.source,multiplier:mult,executions:c.executions};
@@ -500,12 +503,19 @@ function importFiles(files){
     }};rd.readAsText(file);});
 }
 /* sync.py data, merged once per generation */
-if(EMBED&&EMBED.trades&&EMBED.generated!==S.settings.lastSync){
-  const freshBrowser=!S.trades.length;mergeTrades(EMBED.trades);
+function applySync(EMBED){
+  if(!(EMBED&&EMBED.trades&&EMBED.generated!==S.settings.lastSync))return null;
+  const freshBrowser=!S.trades.length;const r=mergeTrades(EMBED.trades);
   Object.entries(EMBED.days||{}).forEach(([d,n])=>{if(!S.days[d])S.days[d]=n;});
   (EMBED.playbook||[]).forEach(p=>{if(!S.playbook.some(x=>x.name===p.name))S.playbook.push(p);});
   if(freshBrowser&&EMBED.settings)S.settings=Object.assign(S.settings,EMBED.settings);
-  S.settings.lastSync=EMBED.generated;save();}
+  S.settings.lastSync=EMBED.generated;save();return r;}
+applySync(EMBED);
+/* live mode: `sync.py --serve` serves this page; new trades appear without reloading */
+if(/^https?:$/.test(location.protocol)){
+  setInterval(async()=>{try{const r=await fetch("data.json",{cache:"no-store"});if(!r.ok)return;const res=applySync(await r.json());
+    if(res){if(!document.querySelector(".drawer.on,.modal.on"))render();else renderFilters();if(res.added)toast(res.added+(res.added>1?" nouveaux trades synchronisés":" nouveau trade synchronisé"));}}catch(e){}},20000);
+}
 
 /* ================================================================ metrics */
 function periodRange(p){
@@ -519,7 +529,7 @@ function periodRange(p){
 function filtered(opts={}){
   const r=opts.ignorePeriod?null:periodRange(UI.period);
   return S.trades.filter(t=>{const d=dayOf(t.closeTime||t.openTime);
-    if(r&&(d<r[0]||d>r[1]))return false;if(UI.symbol&&t.symbol!==UI.symbol)return false;
+    if(r&&(d<r[0]||d>r[1]))return false;if(UI.symbol&&t.symbol!==UI.symbol)return false;if(UI.account&&(t.account||"")!==UI.account)return false;
     if(UI.setup&&(t.setup||"")!==UI.setup)return false;if(UI.side&&t.side!==UI.side)return false;return true;});
 }
 const closedOf=ts_=>ts_.filter(t=>t.status!=="open"&&t.pnl!=null).sort((a,b)=>(a.closeTime||"")<(b.closeTime||"")?-1:1);
@@ -638,6 +648,9 @@ function renderFilters(){
   const syms=[...new Set(S.trades.map(t=>t.symbol))].sort(),setups=[...new Set(S.trades.map(t=>t.setup).filter(Boolean).concat(S.playbook.map(p=>p.name)))].sort();
   $("#fSymbol").innerHTML=`<option value="">Tous les symboles</option>`+syms.map(s=>`<option ${UI.symbol===s?"selected":""}>${esc(s)}</option>`).join("");
   $("#fSetup").innerHTML=`<option value="">Tous les setups</option>`+setups.map(s=>`<option ${UI.setup===s?"selected":""}>${esc(s)}</option>`).join("");
+  const accts=[...new Set(S.trades.map(t=>t.account||""))].sort();const fa=$("#fAccount");
+  fa.style.display=accts.length>1||accts[0]?"":"none";
+  fa.innerHTML=`<option value="">Tous les comptes</option>`+accts.map(a=>`<option value="${esc(a)}" ${UI.account===a?"selected":""}>${a?esc(a):"(sans compte)"}</option>`).join("");
   $("#fPeriod").value=UI.period;$("#fSide").value=UI.side;
   const all=compute(S.trades);$("#balance").innerHTML=`<span class="${cls(all.net)}">${money((+S.settings.startBalance||0)+all.net)}</span>`;
 }
@@ -697,7 +710,7 @@ function tradeTable(list,full){
   const rows=list.map(t=>{const r=rMultiple(t);return `<tr class="click" onclick="openTrade('${t.id}')">`+cols.map(([k,,c])=>{
     let v;switch(k){
       case "closeTime":v=t.status==="open"?`<span class="pill warn">Ouvert</span> ${fmtDate(dayOf(t.openTime))}`:`${fmtDate(dayOf(t.closeTime))} <span class="mut">${(t.closeTime||"").slice(11,16)}</span>`;break;
-      case "symbol":v=`<b>${esc(t.symbol)}</b>`;break;case "side":v=`<span class="pill ${t.side}">${t.side==="long"?"Long":"Short"}</span>`;break;
+      case "symbol":v=`<b>${esc(t.symbol)}</b>${t.account&&full?`<div class="mut" style="font-size:11px">${esc(t.account)}</div>`:""}`;break;case "side":v=`<span class="pill ${t.side}">${t.side==="long"?"Long":"Short"}</span>`;break;
       case "qty":v=num(t.qty,4);break;case "entry":v=num(t.entry,5);break;case "exit":v=num(t.exit,5);break;
       case "hold":v=fmtDur(holdMin(t));break;case "pnl":v=t.pnl==null?"-":`<b class="${cls(t.pnl)}">${money(t.pnl,{sign:1})}</b>`;break;
       case "r":v=r==null?"-":`<span class="${cls(r)}">${num(r)} R</span>`;break;case "setup":v=t.setup?esc(t.setup):'<span class="mut">-</span>';break;
@@ -776,9 +789,9 @@ function bindJournal(){
   document.querySelectorAll("[data-mood]").forEach(el=>el.addEventListener("click",()=>{const [d,v]=el.dataset.mood.split("|");S.days[d]=S.days[d]||{};S.days[d].mood=S.days[d].mood===+v?null:+v;save();render();}));
 }
 
-const REPORTS=[["setup","Setup"],["symbol","Symbole"],["weekday","Jour de la semaine"],["hour","Heure d'entrée"],["side","Long / Short"],["duration","Durée"],["tags","Tags"],["mistakes","Erreurs"],["emotion","Émotion"],["rating","Note"],["month","Mois"]];
+const REPORTS=[["account","Compte"],["setup","Setup"],["symbol","Symbole"],["weekday","Jour de la semaine"],["hour","Heure d'entrée"],["side","Long / Short"],["duration","Durée"],["tags","Tags"],["mistakes","Erreurs"],["emotion","Émotion"],["rating","Note"],["month","Mois"]];
 function groupKey(t,k){
-  switch(k){case "setup":return [t.setup||"(sans setup)"];case "symbol":return [t.symbol];
+  switch(k){case "account":return [t.account||"(sans compte)"];case "setup":return [t.setup||"(sans setup)"];case "symbol":return [t.symbol];
     case "weekday":return [["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"][new Date(dayOf(t.openTime)+"T12:00:00").getDay()]];
     case "hour":return [(t.openTime||"").slice(11,13)+"h"];case "side":return [t.side==="long"?"Long":"Short"];
     case "duration":{const h=holdMin(t);return [h==null?"(inconnue)":h<1?"< 1 min":h<5?"1 à 5 min":h<15?"5 à 15 min":h<60?"15 à 60 min":h<240?"1 à 4 h":"> 4 h"];}
@@ -870,7 +883,7 @@ function saveSettings(){
 function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},100);}
 function backup(){download("mindlock-journal-"+todayStr()+".json",JSON.stringify(S,null,1),"application/json");}
 function exportCSV(){
-  const cols=["openTime","closeTime","symbol","side","qty","entry","exit","fees","pnl","setup","tags","mistakes","emotion","rating","followedRules","stop","target","notes"];
+  const cols=["openTime","closeTime","account","symbol","side","qty","entry","exit","fees","pnl","setup","tags","mistakes","emotion","rating","followedRules","stop","target","notes"];
   const q=v=>{v=Array.isArray(v)?v.join("|"):v==null?"":String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
   download("mindlock-trades-"+todayStr()+".csv",[cols.join(",")].concat(filtered().map(t=>cols.map(c=>q(t[c])).join(","))).join("\n"),"text/csv");
 }
@@ -888,7 +901,7 @@ function openTrade(id){
     <div class="hero"><span class="big ${cls(t.pnl)}">${t.pnl==null?"-":money(t.pnl,{sign:1})}</span>${r!=null?`<span class="pill ${r>=0?"long":"short"}">${num(r)} R</span>`:""}</div>
     <div class="stats" style="margin-top:10px"><div><span>Quantité</span><span>${num(t.qty,4)}</span></div><div><span>Durée</span><span>${fmtDur(holdMin(t))}</span></div>
       <div><span>Entrée moy.</span><span>${num(t.entry,5)}</span></div><div><span>Sortie moy.</span><span>${num(t.exit,5)}</span></div>
-      <div><span>Frais</span><span>${money(+t.fees||0)}</span></div><div><span>Source</span><span>${esc(t.source||"manuel")}</span></div></div>
+      <div><span>Frais</span><span>${money(+t.fees||0)}</span></div><div><span>Source</span><span>${esc(t.source||"manuel")}</span></div>${t.account?`<div><span>Compte</span><span>${esc(t.account)}</span></div>`:""}</div>
     <div class="section">Setup</div>
     <select id="dSetup" style="width:100%"><option value="">(aucun)</option>${setups.map(s=>`<option ${t.setup===s?"selected":""}>${esc(s)}</option>`).join("")}</select>
     ${pb&&pb.rules.length?`<div class="mut" style="font-size:12px;margin-top:6px">Règles : ${pb.rules.map(esc).join(" · ")}</div>`:""}
@@ -992,6 +1005,7 @@ $("#nav").addEventListener("click",e=>{const b=e.target.closest("button[data-vie
 $("#fPeriod").onchange=e=>{UI.period=e.target.value;UI.page=0;UI.jpage=0;render();};
 $("#fSymbol").onchange=e=>{UI.symbol=e.target.value;UI.page=0;render();};
 $("#fSetup").onchange=e=>{UI.setup=e.target.value;UI.page=0;render();};
+$("#fAccount").onchange=e=>{UI.account=e.target.value;UI.page=0;render();};
 $("#fSide").onchange=e=>{UI.side=e.target.value;UI.page=0;render();};
 $("#addBtn").onclick=()=>openTradeForm();
 $("#importBtn").onclick=()=>$("#fileInput").click();

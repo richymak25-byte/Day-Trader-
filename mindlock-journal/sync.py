@@ -7,6 +7,10 @@ trades, and builds the dashboard with the data inside it:
     python3 mindlock-journal/sync.py                 # trader/state/broker.json + trader/journal/import/*.csv
     python3 mindlock-journal/sync.py --csv export.csv
     python3 mindlock-journal/sync.py --watch 60      # re-sync every 60 seconds
+    python3 mindlock-journal/sync.py --serve         # dashboard on http://127.0.0.1:8765, live updates
+
+Brokers and prop firms connected in trader/journal/connectors.json (see
+connectors.example.json and connectors.py) are read on every sync.
 
 Writes trader/journal/trades.json and trader/journal/MINDLOCK-Journal.html.
 Notes, tags, setups and ratings typed in trades.json are kept on every sync, and
@@ -27,6 +31,8 @@ import unicodedata
 from datetime import datetime, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
 TEMPLATE = os.path.join(HERE, "index.html")
 PLACEHOLDER = "/*__MINDLOCK_DATA__*/null"
 EPS = 1e-9
@@ -58,6 +64,7 @@ COLS = {
                   "soldtimestamp", "closedat"],
     "entry": ["openprice", "entryprice", "prixouverture", "prixentree", "buyprice"],
     "exit": ["closeprice", "exitprice", "prixfermeture", "prixsortie", "sellprice"],
+    "account": ["account", "accountid", "accountname", "acct", "compte", "accountnumber", "login"],
     "pnl": ["profit", "pnl", "pl", "netpnl", "realizedpnl", "profitloss", "gain", "resultat",
             "netprofit", "realizedpl"],
 }
@@ -118,6 +125,7 @@ def parse_time(v):
     if not s:
         return None
     s = re.sub(r"\s+", " ", s)
+    s = re.sub(r"^(\d{4}-\d{2}-\d{2});", r"\1 ", s)
     s = re.sub(r"(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$", "", s) if re.match(r"^\d{4}-\d{2}-\d{2}T", s) else s
     s = re.sub(r"\s+(EST|EDT|ET|UTC|GMT|CET|CEST)$", "", s, flags=re.I)
     s = re.sub(r"\.\d+$", "", s)
@@ -237,8 +245,10 @@ def parse_csv(text, source="csv", overrides=None):
             if pnl is None:
                 continue
             net = pnl - fee
+            acct = (g(row, "account") or "").strip()
+            key = ([acct] if acct else []) + [sym, ot, ct, side, qty, entry]
             trades.append({
-                "id": trade_id(sym, ot, ct, side, qty, entry), "symbol": sym,
+                "id": trade_id(*key), "symbol": sym, "account": acct,
                 "side": "long" if side == "buy" else "short", "qty": qty, "entry": entry, "exit": exit_,
                 "openTime": ot, "closeTime": ct or ot, "fees": round(fee, 2), "pnl": round(net, 2),
                 "status": "closed", "source": source, "multiplier": mult, "executions": []})
@@ -258,7 +268,8 @@ def parse_csv(text, source="csv", overrides=None):
         if not sym or not side or not q or not price or not when:
             continue
         execs.append({"time": when, "symbol": sym, "side": side, "qty": abs(q), "price": price,
-                      "fee": abs(parse_num(g(row, "fees")) or 0.0), "source": source})
+                      "fee": abs(parse_num(g(row, "fees")) or 0.0), "source": source,
+                      "account": (g(row, "account") or "").strip()})
     return execs, trades
 
 
@@ -269,9 +280,9 @@ def pair(executions, overrides=None):
     closes when it comes back to 0. A fill that flips the position is split."""
     by_sym = {}
     for i, e in enumerate(executions):
-        by_sym.setdefault(e["symbol"], []).append((e["time"], i, e))
+        by_sym.setdefault((e.get("account") or "", e["symbol"]), []).append((e["time"], i, e))
     out = []
-    for sym, fills in by_sym.items():
+    for (acct, sym), fills in by_sym.items():
         fills.sort(key=lambda x: (x[0], x[1]))
         mult = multiplier(sym, overrides)
         pos, cur = 0.0, None
@@ -280,7 +291,7 @@ def pair(executions, overrides=None):
             fee_left = f.get("fee", 0.0)
             while abs(signed) > EPS:
                 if abs(pos) < EPS:
-                    cur = {"symbol": sym, "dir": 1 if signed > 0 else -1, "openQty": 0.0, "openVal": 0.0,
+                    cur = {"symbol": sym, "account": acct, "dir": 1 if signed > 0 else -1, "openQty": 0.0, "openVal": 0.0,
                            "closeQty": 0.0, "closeVal": 0.0, "fees": 0.0, "openTime": f["time"],
                            "closeTime": None, "executions": [], "source": f.get("source", "sync")}
                 if pos == 0 or (pos > 0) == (signed > 0):
@@ -319,8 +330,9 @@ def finish(cur, mult):
     if closed:
         pnl = round(cur["dir"] * (cur["closeVal"] - cur["openVal"]) * mult - cur["fees"], 2)
     side = "long" if cur["dir"] > 0 else "short"
-    return {"id": trade_id(cur["symbol"], cur["openTime"], side, cur["executions"][0]["price"]),
-            "symbol": cur["symbol"], "side": side, "qty": round(cur["openQty"], 6),
+    key = ([cur["account"]] if cur.get("account") else []) + [cur["symbol"], cur["openTime"], side,
+                                                             cur["executions"][0]["price"]]
+    return {"id": trade_id(*key), "symbol": cur["symbol"], "account": cur.get("account", ""), "side": side, "qty": round(cur["openQty"], 6),
             "entry": round(entry, 6) if entry is not None else None,
             "exit": round(exit_, 6) if exit_ is not None else None,
             "openTime": cur["openTime"], "closeTime": cur["closeTime"], "fees": round(cur["fees"], 2),
@@ -419,6 +431,29 @@ def build(args):
         execs += e
         closed += t
         print("  %s: %d executions, %d closed trades" % (path, len(e), len(t)))
+    # brokers and prop firms: executions are cached so trades that span two syncs pair correctly
+    conn_path = os.path.join(jdir, "connectors.json")
+    if os.path.isfile(conn_path):
+        import connectors
+        c_execs, c_trades, c_mult = connectors.run_all(conn_path)
+        for k, v in c_mult.items():
+            overrides.setdefault(k, v)
+        cache_path = os.path.join(jdir, "executions.json")
+        cache = {}
+        if os.path.isfile(cache_path):
+            with open(cache_path, encoding="utf-8") as fh:
+                cache = json.load(fh)
+        for e in c_execs:
+            if e.get("id"):
+                cache[e["id"]] = e
+            else:  # CSV files from a folder are read again on every sync
+                execs.append(e)
+        cache.setdefault("_multipliers", {}).update(c_mult)
+        overrides.update(dict((k, v) for k, v in cache["_multipliers"].items() if k not in overrides))
+        with open(cache_path, "w", encoding="utf-8") as fh:
+            json.dump(cache, fh, indent=0)
+        execs += [v for k, v in cache.items() if not k.startswith("_")]
+        closed += c_trades
     new = pair(execs, overrides) + closed
     trades_path = os.path.join(jdir, "trades.json")
     old = []
@@ -456,19 +491,57 @@ def build(args):
     return out_html
 
 
+def serve(jdir, port):
+    """The dashboard on http://127.0.0.1:PORT; the page polls data.json and shows new trades live."""
+    import threading
+    try:
+        from http.server import ThreadingHTTPServer as Server, SimpleHTTPRequestHandler
+    except ImportError:  # pragma: no cover
+        from http.server import HTTPServer as Server, SimpleHTTPRequestHandler
+
+    class Handler(SimpleHTTPRequestHandler):
+        def translate_path(self, path):
+            name = {"/": "MINDLOCK-Journal.html", "/data.json": "trades.json"}.get(path.split("?")[0])
+            return os.path.join(jdir, name) if name else os.path.join(jdir, "__none__")
+
+        def end_headers(self):
+            self.send_header("Cache-Control", "no-store")
+            SimpleHTTPRequestHandler.end_headers(self)
+
+        def log_message(self, *a):
+            pass
+
+    httpd = Server(("127.0.0.1", port), Handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    print("Dashboard live: http://127.0.0.1:%d  (Ctrl+C to stop)" % port)
+    return httpd
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description="MINDLOCK Journal: sync trades and build the dashboard")
     p.add_argument("--dir", default="trader", help="the trader/ folder (default: trader)")
     p.add_argument("--csv", nargs="*", help="extra broker CSV exports to import")
     p.add_argument("--backup", help="the dashboard's backup file (default: trader/journal/mindlock-backup.json)")
     p.add_argument("--watch", type=int, default=0, help="re-sync every N seconds")
+    p.add_argument("--serve", nargs="?", const=8765, type=int, metavar="PORT",
+                   help="serve the dashboard on http://127.0.0.1:PORT with live updates (default 8765)")
     a = p.parse_args(argv)
     if not os.path.isfile(TEMPLATE):
         sys.exit("missing template: %s" % TEMPLATE)
     build(a)
-    while a.watch > 0:
-        time.sleep(a.watch)
-        build(a)
+    if a.serve:
+        serve(os.path.join(a.dir, "journal"), a.serve)
+        if a.watch <= 0:
+            a.watch = 60
+    try:
+        while a.watch > 0:
+            time.sleep(a.watch)
+            try:
+                build(a)
+            except Exception as err:  # keep watching through a bad file or a network hiccup
+                print("sync error: %s" % err)
+    except KeyboardInterrupt:
+        pass
 
 
 if __name__ == "__main__":

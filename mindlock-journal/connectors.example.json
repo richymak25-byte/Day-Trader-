@@ -1,0 +1,32 @@
+{
+  "_comment": "Copy to trader/journal/connectors.json. Keep only the accounts you use. A secret can be \"env:NAME\" to read an environment variable. Never commit this file.",
+  "timezone": "local",
+  "history_days": 90,
+  "connectors": [
+    {"name": "Topstep", "type": "projectx", "base_url": "https://api.topstepx.com",
+     "username": "your_topstepx_username", "api_key": "env:TOPSTEPX_API_KEY", "only_active": false},
+
+    {"name": "Apex (Tradovate)", "type": "tradovate", "demo": false,
+     "username": "your_tradovate_username", "password": "env:TRADOVATE_PASSWORD",
+     "cid": "env:TRADOVATE_CID", "sec": "env:TRADOVATE_SEC", "enabled": false},
+
+    {"name": "FTMO 100K", "type": "mt5", "login": 1234567, "password": "env:FTMO_PASSWORD",
+     "server": "FTMO-Server", "enabled": false},
+
+    {"name": "IBKR", "type": "ibkr", "token": "env:IBKR_FLEX_TOKEN", "query_id": "123456", "enabled": false},
+
+    {"name": "Alpaca paper", "type": "alpaca", "paper": true,
+     "key_id": "env:APCA_API_KEY_ID", "secret_key": "env:APCA_API_SECRET_KEY", "enabled": false},
+
+    {"name": "OANDA", "type": "oanda", "practice": true, "token": "env:OANDA_TOKEN", "enabled": false},
+
+    {"name": "Bybit", "type": "bybit", "api_key": "env:BYBIT_KEY", "api_secret": "env:BYBIT_SECRET",
+     "categories": ["linear"], "enabled": false},
+
+    {"name": "Binance Futures", "type": "binance", "api_key": "env:BINANCE_KEY", "api_secret": "env:BINANCE_SECRET",
+     "symbols": ["BTCUSDT", "ETHUSDT"], "enabled": false},
+
+    {"name": "Exports (NinjaTrader, Rithmic, cTrader, Webull...)", "type": "folder",
+     "path": "~/Downloads", "pattern": "*.csv", "enabled": false}
+  ]
+}

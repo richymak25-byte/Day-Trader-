@@ -21,6 +21,7 @@ journal. Tu peux aussi déposer tes exports CSV dans `trader/journal/import/`.
 ```bash
 python3 mindlock-journal/sync.py              # une synchro
 python3 mindlock-journal/sync.py --watch 60   # en continu, toutes les 60 s
+python3 mindlock-journal/sync.py --serve      # en direct sur http://127.0.0.1:8765
 python3 mindlock-journal/sync.py --csv ~/Downloads/export.csv
 ```
 
@@ -28,6 +29,54 @@ Puis ouvre `trader/journal/MINDLOCK-Journal.html` : le dashboard contient déjà
 tous tes trades. `trader/journal/trades.json` garde les données ; les notes,
 tags, setups et notes d'exécution que tu y ajoutes sont conservés à chaque
 synchro. Python 3.8+, rien à installer.
+
+## Brokers et prop firms connectés
+
+`sync.py` lit directement l'historique de tes comptes via l'API officielle de
+chaque plateforme. Les connecteurs sont **en lecture seule** : ils ne peuvent ni
+passer, ni modifier, ni annuler un ordre.
+
+1. Copie `mindlock-journal/connectors.example.json` vers `trader/journal/connectors.json`.
+2. Garde les comptes que tu utilises, mets `"enabled": true` et renseigne tes accès.
+   Conseil : écris les secrets sous la forme `"env:NOM_VARIABLE"` pour les lire
+   dans une variable d'environnement plutôt que dans le fichier.
+3. Lance le journal en direct :
+
+```bash
+python3 mindlock-journal/sync.py --serve
+```
+
+Ouvre <http://127.0.0.1:8765> : tes comptes sont relus toutes les 60 secondes
+et les nouveaux trades apparaissent tout seuls dans la page, sans recharger.
+Plusieurs comptes ? Le filtre **Compte** et le rapport **Par compte** les séparent.
+
+| Type | Plateformes | Ce qu'il faut |
+| --- | --- | --- |
+| `projectx` | TopstepX et les prop firms sur ProjectX | identifiant + clé API (Réglages > API de la plateforme). Autre firm que Topstep : son adresse dans `base_url` |
+| `tradovate` | Tradovate et les prop firms sur Tradovate (Apex, Tradeify, Take Profit Trader...) | identifiant, mot de passe, et l'accès API Tradovate (abonnement API, `cid` + `sec`). **Bêta** |
+| `mt5` | MetaTrader 5 : FTMO, FundedNext, The5ers, E8, Alpha Capital, FundingPips... et tout broker MT5 | Windows + terminal MT5 + `pip install MetaTrader5`, numéro de compte, mot de passe, serveur |
+| `ibkr` | Interactive Brokers | une Flex Query (Trades, niveau Execution) + le jeton Flex Web Service |
+| `alpaca` | Alpaca (paper et réel) | clé API + secret |
+| `oanda` | OANDA | jeton API v20 |
+| `bybit` | Bybit et les prop firms crypto sur Bybit | clé API **en lecture seule** + secret |
+| `binance` | Binance Futures USD-M | clé API **en lecture seule** + secret + liste des symboles |
+| `folder` | tout le reste : NinjaTrader, Rithmic (R Trader Pro), cTrader, DXtrade, Match-Trader, MT4, Webull, thinkorswim, eToro... | un dossier (ex. `~/Downloads`) : chaque export CSV qui y arrive est importé seul |
+
+À savoir :
+
+- **Ta prop firm** : elle te donne une plateforme (ProjectX, Tradovate, Rithmic,
+  MT5, cTrader...). Choisis le connecteur de cette plateforme. Certaines firms
+  bloquent l'accès API sur les comptes d'évaluation : dans ce cas, utilise `folder`
+  avec les exports CSV.
+- **Interactive Brokers** met à jour les Flex Queries une fois par jour : les
+  trades du jour arrivent le lendemain.
+- **MT4** n'a pas d'API utilisable depuis Python : exporte l'historique (CSV) dans
+  le dossier surveillé.
+- Un connecteur en erreur (mot de passe, réseau) est signalé dans le terminal et
+  n'empêche pas les autres de se synchroniser.
+- Le dossier `trader/` (tes données et tes accès) est exclu de Git par `.gitignore`.
+- Les connecteurs ont été testés avec des réponses d'API simulées. Avec ton
+  premier vrai compte, vérifie que les premiers trades importés sont corrects.
 
 ## Ce que fait le dashboard
 
