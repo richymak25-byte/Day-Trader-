@@ -82,10 +82,28 @@ M2K, CL, MCL, GC, MGC. Les autres se règlent dans Import & Réglages
 (`SYMBOLE=valeur`) ou dans `trader/journal/config.json` :
 `{"multipliers": {"NQ": 20}}`.
 
+## Sauvegarde automatique
+
+À activer une seule fois : **Import & Réglages > Activer la sauvegarde automatique**,
+puis enregistre le fichier dans `trader/journal/mindlock-backup.json`.
+
+1. **Fichier sur ton disque**, réécrit tout seul environ une seconde après chaque
+   modification (Chrome, Edge, Opera). Après un redémarrage du navigateur, il
+   redemande l'accès : un clic sur le badge « Sauvegarde en pause » en bas à gauche.
+2. **Copies de secours dans le navigateur** : une toutes les 30 minutes et une
+   dès que des trades disparaissent. Toutes celles des dernières 24 h sont gardées,
+   puis une par jour sur 14 jours. Chacune se restaure en un clic.
+3. **Firefox et Safari** ne peuvent pas écrire de fichier : coche « Télécharger
+   aussi une copie par jour » pour recevoir un fichier par jour dans tes Téléchargements.
+
+Si le navigateur est vidé ou si tu changes d'ordinateur, lance `sync.py` :
+il relit `mindlock-backup.json` et remet trades, notes, journal, playbook et
+réglages dans le dashboard.
+
 ## Où sont mes données ?
 
-- Dans le navigateur (stockage local) pour ce que tu saisis dans la page.
-  Exporte une sauvegarde JSON de temps en temps (Import & Réglages).
+- Dans le navigateur (stockage local) pour ce que tu saisis dans la page, et
+  dans le fichier de sauvegarde automatique.
 - Dans `trader/journal/trades.json` pour ce que `sync.py` collecte.
 
 Rien n'est envoyé sur internet. Ce journal n'est pas un conseil financier.

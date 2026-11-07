@@ -194,6 +194,7 @@ svg text{fill:var(--muted);font-size:11px;font-family:inherit}
     <nav class="nav" id="nav"></nav>
     <div class="side-foot">
       <div class="balance"><small>Solde du compte</small><div id="balance">0</div></div>
+      <button class="btn sm" id="abBadge" style="font-weight:500;text-align:left;font-size:12px" title="Sauvegarde automatique">Sauvegarde…</button>
       <button class="btn sm" id="themeBtn">Thème clair / sombre</button>
     </div>
   </aside>
@@ -245,7 +246,75 @@ let S;
 try{S=JSON.parse(localStorage.getItem(KEY))||freshStore();}catch(e){S=freshStore();}
 S.settings=Object.assign(freshStore().settings,S.settings||{});
 S.days=S.days||{};S.playbook=S.playbook||[];S.trades=S.trades||[];
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast("Sauvegarde impossible (stockage plein ou bloqué)");}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast("Sauvegarde impossible (stockage plein ou bloqué)");}scheduleBackup();}
+
+/* ================================================================ automatic backup
+   1. a file on disk, rewritten after every change (File System Access API: Chrome, Edge, Opera)
+   2. one snapshot per day kept inside the browser (IndexedDB), the last 14 days
+   3. browsers without (1): optional automatic download of one backup file per day */
+const AB={handle:null,state:"off",last:null,timer:null,supported:typeof window.showSaveFilePicker==="function"};
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open("mindlock-journal",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function kvGet(k){try{const db=await idb();return await new Promise(res=>{const q=db.transaction("kv").objectStore("kv").get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(undefined);});}catch(e){return undefined;}}
+async function kvSet(k,v){try{const db=await idb();await new Promise(res=>{const tx=db.transaction("kv","readwrite");tx.objectStore("kv").put(v,k);tx.oncomplete=res;tx.onerror=res;});}catch(e){}}
+function scheduleBackup(){clearTimeout(AB.timer);AB.timer=setTimeout(runBackup,1200);}
+async function runBackup(){
+  AB.timer=null;const json=JSON.stringify(S),td=todayStr();
+  // snapshots: a new one every 30 min or as soon as trades disappear; all of the last 24 h, then the last of each day for 14 days
+  let snaps=(await kvGet("snapshots"))||[];const now=Date.now(),last=snaps[snaps.length-1];
+  const snap={ts:now,date:td,at:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}),n:S.trades.length,data:json};
+  if(!last||!last.ts||now-last.ts>30*60e3||S.trades.length<last.n)snaps.push(snap);else snaps[snaps.length-1]=snap;
+  const recent=snaps.filter(x=>now-x.ts<864e5),byDay={};snaps.filter(x=>now-x.ts>=864e5).forEach(x=>{byDay[x.date]=x;});
+  snaps=Object.values(byDay).sort((a,b)=>a.ts-b.ts).slice(-14).concat(recent.slice(-48));await kvSet("snapshots",snaps);
+  // file on disk
+  if(AB.handle){
+    try{
+      const perm=await AB.handle.queryPermission({mode:"readwrite"});
+      if(perm==="granted"){const w=await AB.handle.createWritable();await w.write(json);await w.close();AB.state="ok";AB.last=new Date();}
+      else AB.state="paused";
+    }catch(e){AB.state="error";}
+  }else if(S.settings.autoDownload&&S.settings.lastAutoDownload!==td&&S.trades.length){
+    download("mindlock-backup-"+td+".json",json,"application/json");S.settings.lastAutoDownload=td;
+    try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}AB.state="download";AB.last=new Date();
+  }
+  renderBadge();
+}
+async function initBackup(){
+  AB.handle=(await kvGet("handle"))||null;
+  if(AB.handle){try{AB.state=(await AB.handle.queryPermission({mode:"readwrite"}))==="granted"?"ok":"paused";}catch(e){AB.state="error";}}
+  else AB.state=S.settings.autoDownload?"download":"off";
+  renderBadge();if(AB.state==="ok"||AB.state==="download")runBackup();if(UI.view==="settings")render();
+}
+async function pickBackupFile(){
+  if(!AB.supported)return toast("Ce navigateur ne permet pas d'écrire un fichier : active le téléchargement automatique");
+  try{const h=await window.showSaveFilePicker({suggestedName:"mindlock-backup.json",types:[{description:"Sauvegarde MINDLOCK",accept:{"application/json":[".json"]}}]});
+    AB.handle=h;await kvSet("handle",h);AB.state="ok";await runBackup();toast("Sauvegarde automatique activée");render();}
+  catch(e){if(e&&e.name!=="AbortError")toast("Impossible d'utiliser ce fichier");}
+}
+async function resumeBackup(){
+  if(!AB.handle)return pickBackupFile();
+  try{if((await AB.handle.requestPermission({mode:"readwrite"}))==="granted"){AB.state="ok";await runBackup();toast("Sauvegarde automatique reprise");}}catch(e){AB.state="error";}
+  renderBadge();if(UI.view==="settings")render();
+}
+async function stopBackup(){AB.handle=null;await kvSet("handle",null);AB.state=S.settings.autoDownload?"download":"off";renderBadge();render();}
+function toggleAutoDownload(on){S.settings.autoDownload=on;if(on)S.settings.lastAutoDownload=null;save();if(!AB.handle)AB.state=on?"download":"off";renderBadge();render();}
+async function restoreSnapshot(ts){
+  const snaps=(await kvGet("snapshots"))||[],sn=snaps.find(x=>x.ts===ts);if(!sn)return;
+  if(!confirm(`Revenir à la copie du ${fmtDate(sn.date)} à ${sn.at} (${sn.n} trades) ? Les changements faits depuis seront remplacés.`))return;
+  const d=JSON.parse(sn.data);S=Object.assign(freshStore(),d);S.settings=Object.assign(freshStore().settings,d.settings||{});save();UI.cal=null;render();toast("Copie restaurée");
+}
+async function snapshotList(){
+  const el=document.getElementById("snapList");if(!el)return;const snaps=((await kvGet("snapshots"))||[]).filter(x=>x.ts).reverse();
+  el.innerHTML=snaps.length?snaps.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed var(--line)"><span>${fmtDate(x.date,{weekday:"short",day:"numeric",month:"short"})} <span class="mut">${esc(x.at)} · ${x.n} trades</span></span><button class="btn sm" onclick="restoreSnapshot(${x.ts})">Restaurer</button></div>`).join(""):'<span class="mut">La première copie sera créée à ta prochaine modification.</span>';
+}
+function renderBadge(){
+  const el=document.getElementById("abBadge");if(!el)return;
+  const t=AB.last?AB.last.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}):"";
+  const m={ok:["pos","●","Sauvegarde auto"+(t?" · "+t:"")],download:["pos","●","Copie du jour téléchargée"],paused:["warn","●","Sauvegarde en pause : clique pour reprendre"],
+    error:["neg","●","Erreur de sauvegarde : clique ici"],off:["neg","○","Sauvegarde auto désactivée"]}[AB.state];
+  el.innerHTML=`<span class="${m[0]==="warn"?"":m[0]}" style="${m[0]==="warn"?"color:var(--amber)":""}">${m[1]}</span> ${m[2]}`;
+  el.onclick=AB.state==="paused"||AB.state==="error"?resumeBackup:()=>go("settings");
+}
+window.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"&&AB.timer){clearTimeout(AB.timer);runBackup();}});
 
 const UI={view:"dashboard",period:"all",symbol:"",setup:"",side:"",cal:null,sort:{k:"closeTime",d:-1},report:"setup",page:0};
 
@@ -431,7 +500,12 @@ function importFiles(files){
     }};rd.readAsText(file);});
 }
 /* sync.py data, merged once per generation */
-if(EMBED&&EMBED.trades&&EMBED.generated!==S.settings.lastSync){mergeTrades(EMBED.trades);S.settings.lastSync=EMBED.generated;save();}
+if(EMBED&&EMBED.trades&&EMBED.generated!==S.settings.lastSync){
+  const freshBrowser=!S.trades.length;mergeTrades(EMBED.trades);
+  Object.entries(EMBED.days||{}).forEach(([d,n])=>{if(!S.days[d])S.days[d]=n;});
+  (EMBED.playbook||[]).forEach(p=>{if(!S.playbook.some(x=>x.name===p.name))S.playbook.push(p);});
+  if(freshBrowser&&EMBED.settings)S.settings=Object.assign(S.settings,EMBED.settings);
+  S.settings.lastSync=EMBED.generated;save();}
 
 /* ================================================================ metrics */
 function periodRange(p){
@@ -572,7 +646,7 @@ function render(){
   renderNav();renderFilters();$("#viewTitle").textContent=(VIEWS.find(v=>v[0]===UI.view)||[])[1];
   $("#filters").style.display=UI.view==="settings"||UI.view==="playbook"?"none":"";
   const v={dashboard:viewDashboard,journal:viewJournal,trades:viewTrades,calendar:viewCalendar,reports:viewReports,playbook:viewPlaybook,settings:viewSettings}[UI.view];
-  $("#view").innerHTML=v();if(UI.view==="journal")bindJournal();
+  $("#view").innerHTML=v();if(UI.view==="journal")bindJournal();if(UI.view==="settings")snapshotList();renderBadge();
 }
 function noData(){return `<div class="card empty"><b>Bienvenue dans MINDLOCK Journal</b>Importe un export CSV de ton broker, lance <code>sync.py</code>, ajoute un trade à la main, ou charge la démo pour voir le dashboard.<div style="margin-top:18px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn primary" onclick="$('#fileInput').click()">Importer un CSV</button><button class="btn" onclick="openTradeForm()">+ Ajouter un trade</button><button class="btn" onclick="loadDemo()">Charger la démo</button></div></div>`;}
 
@@ -773,7 +847,15 @@ python3 mindlock-journal/sync.py --watch 60   # en continu</pre>
     <label class="full">Multiplicateurs (futures, un par ligne : SYMBOLE=valeur du point)<textarea id="stMult" rows="3" placeholder="NQ=20&#10;MNQ=2">${esc(Object.entries(s.multipliers||{}).map(([a,b])=>a+"="+b).join("\n"))}</textarea></label>
     <label class="full">Liste des erreurs (une par ligne)<textarea id="stMis" rows="5">${esc((s.mistakes||[]).join("\n"))}</textarea></label>
   </div><div style="margin-top:14px;text-align:right"><button class="btn primary" onclick="saveSettings()">Enregistrer</button></div>
-    <div class="section">Sauvegarde</div>
+    <div class="section">Sauvegarde automatique</div>
+    ${AB.supported?(AB.handle?`<p style="margin:0 0 8px">Fichier : <b>${esc(AB.handle.name)}</b> · ${AB.state==="ok"?'<span class="pos">actif, réécrit à chaque modification</span>':'<span style="color:var(--amber)">en pause (le navigateur redemande l\'accès après redémarrage)</span>'}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${AB.state==="ok"?"":'<button class="btn primary" onclick="resumeBackup()">Reprendre</button>'}<button class="btn" onclick="pickBackupFile()">Changer de fichier</button><button class="btn" onclick="stopBackup()">Désactiver</button></div>`
+      :`<p class="mut" style="margin:0 0 8px">Choisis un fichier une fois : il sera mis à jour tout seul après chaque modification. Conseil : enregistre-le dans <code>trader/journal/mindlock-backup.json</code>, <code>sync.py</code> le relira.</p><button class="btn primary" onclick="pickBackupFile()">Activer la sauvegarde automatique</button>`)
+    :`<p class="mut" style="margin:0 0 8px">Ce navigateur ne peut pas écrire directement un fichier (Chrome ou Edge le peuvent). Option : télécharger automatiquement une copie par jour.</p>`}
+    <label style="display:flex;gap:8px;align-items:center;margin-top:10px;cursor:pointer"><input type="checkbox" ${S.settings.autoDownload?"checked":""} onchange="toggleAutoDownload(this.checked)"> Télécharger aussi une copie par jour dans mes Téléchargements</label>
+    <div class="section">Copies de secours (24 h + 14 jours, dans ce navigateur)</div>
+    <div id="snapList" style="font-size:13px"><span class="mut">Chargement…</span></div>
+    <div class="section">Sauvegarde manuelle</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="backup()">Exporter la sauvegarde (JSON)</button><button class="btn" onclick="$('#fileInput').click()">Restaurer</button><button class="btn" onclick="exportCSV()">Exporter les trades (CSV)</button></div>
     <div class="section">Données</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="loadDemo()">Charger la démo</button><button class="btn danger" onclick="resetAll()">Tout effacer</button></div>
@@ -926,6 +1008,7 @@ document.addEventListener("mousemove",e=>{const el=e.target.closest&&e.target.cl
   tip.textContent=el.getAttribute("data-tip");tip.style.display="block";const w=tip.offsetWidth,h=tip.offsetHeight;
   tip.style.left=Math.min(window.innerWidth-w-8,e.clientX+14)+"px";tip.style.top=Math.max(8,e.clientY-h-12)+"px";});
 render();
+initBackup();
 </script>
 </body>
 </html>

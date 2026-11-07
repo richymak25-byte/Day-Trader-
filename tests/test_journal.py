@@ -109,7 +109,7 @@ class Build(unittest.TestCase):
         shutil.rmtree(self.tmp)
 
     def test_broker_fills_become_a_trade_and_notes_survive_a_resync(self):
-        out = sync.build(type("A", (), {"dir": self.dir, "csv": None})())
+        out = sync.build(type("A", (), {"dir": self.dir, "csv": None, "backup": None})())
         path = os.path.join(self.dir, "journal", "trades.json")
         with open(path) as fh:
             data = json.load(fh)
@@ -119,7 +119,7 @@ class Build(unittest.TestCase):
         t["notes"], t["setup"] = "clean ORB", "Opening Range Breakout"
         with open(path, "w") as fh:
             json.dump(data, fh)
-        sync.build(type("A", (), {"dir": self.dir, "csv": None})())
+        sync.build(type("A", (), {"dir": self.dir, "csv": None, "backup": None})())
         with open(path) as fh:
             again = json.load(fh)["trades"][0]
         self.assertEqual((again["notes"], again["setup"]), ("clean ORB", "Opening Range Breakout"))
@@ -128,6 +128,32 @@ class Build(unittest.TestCase):
         self.assertNotIn(sync.PLACEHOLDER, html)
         self.assertIn('"clean ORB"', html)
         self.assertIn("<title>MINDLOCK Journal</title>", html)
+
+    def test_backup_file_restores_notes_journal_and_manual_trades(self):
+        args = type("A", (), {"dir": self.dir, "csv": None, "backup": None})()
+        sync.build(args)
+        jdir = os.path.join(self.dir, "journal")
+        with open(os.path.join(jdir, "trades.json")) as fh:
+            tid = json.load(fh)["trades"][0]["id"]
+        backup = {"trades": [{"id": tid, "notes": "from the browser", "rating": 5, "tags": []},
+                             {"id": "mmanual1", "symbol": "ES", "side": "long", "qty": 1, "pnl": 125.0,
+                              "status": "closed", "openTime": "2026-11-03 10:00:00",
+                              "closeTime": "2026-11-03 10:20:00", "source": "manuel"}],
+                  "days": {"2026-11-02": {"plan": "ORB only", "mood": 4}},
+                  "playbook": [{"id": "pb9", "name": "Gap fill", "rules": ["Gap > 2%"]}],
+                  "settings": {"currency": "EUR", "startBalance": 5000, "theme": "light"}}
+        with open(os.path.join(jdir, "mindlock-backup.json"), "w") as fh:
+            json.dump(backup, fh)
+        out = sync.build(args)
+        with open(os.path.join(jdir, "trades.json")) as fh:
+            data = json.load(fh)
+        t = [x for x in data["trades"] if x["id"] == tid][0]
+        self.assertEqual((t["notes"], t["rating"], t["pnl"]), ("from the browser", 5, 46.72))
+        self.assertEqual(len(data["trades"]), 2)
+        self.assertEqual(data["days"]["2026-11-02"]["plan"], "ORB only")
+        self.assertEqual(data["settings"], {"currency": "EUR", "startBalance": 5000})
+        with open(out, encoding="utf-8") as fh:
+            self.assertIn('"Gap fill"', fh.read())
 
     def test_template_carries_the_placeholder_once(self):
         with open(os.path.join(ROOT, "mindlock-journal", "index.html"), encoding="utf-8") as fh:

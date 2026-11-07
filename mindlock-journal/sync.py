@@ -9,7 +9,9 @@ trades, and builds the dashboard with the data inside it:
     python3 mindlock-journal/sync.py --watch 60      # re-sync every 60 seconds
 
 Writes trader/journal/trades.json and trader/journal/MINDLOCK-Journal.html.
-Notes, tags, setups and ratings typed in trades.json are kept on every sync.
+Notes, tags, setups and ratings typed in trades.json are kept on every sync, and
+the dashboard's automatic backup (trader/journal/mindlock-backup.json) is read back
+in, so a cleared browser gets everything again on the next sync.
 Python 3.8+, standard library only.
 """
 import argparse
@@ -367,6 +369,29 @@ def merge(old, new):
     return out
 
 
+def apply_backup(trades, backup):
+    """The dashboard's automatic backup file (mindlock-backup.json) is where notes, tags,
+    setups and hand-typed trades live: its review fields win, its manual trades are added."""
+    by_id = dict((t["id"], t) for t in trades)
+    for b in backup.get("trades", []):
+        if not b.get("id"):
+            continue
+        t = by_id.get(b["id"])
+        if t is None:
+            trades.append(b)
+            by_id[b["id"]] = b
+            continue
+        for k in USER_FIELDS:
+            v = b.get(k)
+            if v is not None and v != "" and v != []:
+                t[k] = v
+    trades.sort(key=lambda t: t.get("openTime") or "")
+    return trades
+
+
+KEEP_SETTINGS = ("currency", "startBalance", "multipliers", "mistakes")
+
+
 def stats(trades):
     closed = [t for t in trades if t.get("status") == "closed" and t.get("pnl") is not None]
     wins = [t["pnl"] for t in closed if t["pnl"] > 0]
@@ -401,9 +426,20 @@ def build(args):
         with open(trades_path, encoding="utf-8") as fh:
             old = json.load(fh).get("trades", [])
     trades = merge(old, new)
+    backup_path = args.backup or os.path.join(jdir, "mindlock-backup.json")
+    backup = {}
+    if os.path.isfile(backup_path):
+        with open(backup_path, encoding="utf-8") as fh:
+            backup = json.load(fh)
+        trades = apply_backup(trades, backup)
+        print("  %s: notes, journal and playbook restored" % backup_path)
     os.makedirs(os.path.join(jdir, "import"), exist_ok=True)
     data = {"app": "MINDLOCK Journal", "generated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "trades": trades}
+    if backup:
+        data["days"] = backup.get("days", {})
+        data["playbook"] = backup.get("playbook", [])
+        data["settings"] = dict((k, v) for k, v in backup.get("settings", {}).items() if k in KEEP_SETTINGS)
     with open(trades_path, "w", encoding="utf-8") as fh:
         json.dump(data, fh, indent=1, ensure_ascii=False)
     with open(TEMPLATE, encoding="utf-8") as fh:
@@ -424,6 +460,7 @@ def main(argv=None):
     p = argparse.ArgumentParser(description="MINDLOCK Journal: sync trades and build the dashboard")
     p.add_argument("--dir", default="trader", help="the trader/ folder (default: trader)")
     p.add_argument("--csv", nargs="*", help="extra broker CSV exports to import")
+    p.add_argument("--backup", help="the dashboard's backup file (default: trader/journal/mindlock-backup.json)")
     p.add_argument("--watch", type=int, default=0, help="re-sync every N seconds")
     a = p.parse_args(argv)
     if not os.path.isfile(TEMPLATE):
