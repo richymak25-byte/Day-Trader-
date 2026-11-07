@@ -152,6 +152,16 @@ for the 60 days to October 19 2026, the 10:15 AM opening-range scan, Yahoo's
 TSLA headlines that morning, the House Clerk's 2026 index, real PTR text and
 real XBRL facts. They reproduce every number in the example above.
 
+## MINDLOCK Journal
+
+A full trading journal and dashboard lives in [`mindlock-journal/`](mindlock-journal/README.md):
+P&L, win rate, profit factor, MINDLOCK Score, equity curve, calendar, daily journal,
+reports and playbook. It fills itself from `/trader-broker` fills and broker CSV exports:
+
+```bash
+python3 mindlock-journal/sync.py   # then open trader/journal/MINDLOCK-Journal.html
+```
+
 ## Fine print
 
 **Not financial advice.** This is software that reads public data and does
