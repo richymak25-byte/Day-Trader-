@@ -16,7 +16,7 @@ STATIC = os.path.join(os.path.dirname(__file__), "static")
 TYPES = {".html": "text/html; charset=utf-8", ".js": "application/javascript; charset=utf-8",
          ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml"}
 
-TITLES = {"futures": "CopyTrade Futures", "cfd": "CopyTrade CFD"}
+TITLES = {"futures": "MaakCopyTrade Futures", "cfd": "MaakCopyTrade CFD"}
 
 
 class App:
@@ -193,7 +193,7 @@ def make_handler(app):
             "/api/events": app.events, "/api/executions": app.executions}
 
     class Handler(BaseHTTPRequestHandler):
-        server_version = "CopyTrade/" + __version__
+        server_version = "MaakCopyTrade/" + __version__
 
         def log_message(self, fmt, *args):
             pass

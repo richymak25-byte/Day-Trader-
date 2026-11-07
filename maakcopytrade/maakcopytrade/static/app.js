@@ -1,5 +1,5 @@
 "use strict";
-// CopyTrade dashboard: vanilla JS, no external library, works offline.
+// MaakCopyTrade dashboard: vanilla JS, no external library, works offline.
 
 const $ = (s, el) => (el || document).querySelector(s);
 const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));

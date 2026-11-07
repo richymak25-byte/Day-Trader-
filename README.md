@@ -152,10 +152,10 @@ for the 60 days to October 19 2026, the 10:15 AM opening-range scan, Yahoo's
 TSLA headlines that morning, the House Clerk's 2026 index, real PTR text and
 real XBRL facts. They reproduce every number in the example above.
 
-## CopyTrade Local (copieur de trades)
+## MaakCopyTrade (copieur de trades)
 
-`copytrader/` contient un copieur de trades local avec dashboard, en deux editions : prop firms futures
-(Tradovate, ProjectX) et CFD (MetaTrader 5), plus un simulateur. Voir [copytrader/README.md](copytrader/README.md).
+`maakcopytrade/` contient un copieur de trades local avec dashboard, en deux editions : prop firms futures
+(Tradovate, ProjectX) et CFD (MetaTrader 5), plus un simulateur. Voir [maakcopytrade/README.md](maakcopytrade/README.md).
 
 ## Fine print
 

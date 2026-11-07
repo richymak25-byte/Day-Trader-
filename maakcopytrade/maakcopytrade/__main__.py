@@ -1,4 +1,4 @@
-"""Command line: python -m copytrade futures|cfd [--port N] [--demo]"""
+"""Command line: python -m maakcopytrade futures|cfd [--port N] [--demo]"""
 import argparse
 import os
 import sys
@@ -44,7 +44,7 @@ def seed_demo(store, engine, edition):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog="copytrade", description="Copieur de trades local avec dashboard")
+    ap = argparse.ArgumentParser(prog="maakcopytrade", description="Copieur de trades local avec dashboard")
     ap.add_argument("edition", choices=sorted(EDITIONS))
     ap.add_argument("--port", type=int)
     ap.add_argument("--host", default="127.0.0.1", help="laisser 127.0.0.1 sauf raison precise")
@@ -68,7 +68,7 @@ def main(argv=None):
     port = a.port or port
     httpd = serve(App(engine, store), a.host, port)
     url = "http://%s:%d/" % ("127.0.0.1" if a.host in ("0.0.0.0", "") else a.host, port)
-    print("%s pret sur %s  (Ctrl+C pour arreter)" % ("CopyTrade " + a.edition.upper(), url))
+    print("%s pret sur %s  (Ctrl+C pour arreter)" % ("MaakCopyTrade " + a.edition.upper(), url))
     if not a.no_browser:
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
     try:

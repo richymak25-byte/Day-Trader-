@@ -1,4 +1,4 @@
-"""CopyTrade Local: a self-hosted trade copier with a full dashboard.
+"""MaakCopyTrade: a self-hosted trade copier with a full dashboard.
 
 Two editions share this package:
   * futures: prop firm futures accounts (Tradovate, ProjectX / TopstepX, simulator)

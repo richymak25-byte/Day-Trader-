@@ -49,7 +49,7 @@ def _worker(conn, cfg):  # runs in the child process
         req = {"action": mt5.TRADE_ACTION_DEAL, "symbol": sym, "volume": float(abs(qty)),
                "type": mt5.ORDER_TYPE_BUY if qty > 0 else mt5.ORDER_TYPE_SELL,
                "price": tick.ask if qty > 0 else tick.bid, "deviation": int(cfg.get("deviation") or 20),
-               "magic": MAGIC, "comment": (comment or "copytrade")[:31],
+               "magic": MAGIC, "comment": (comment or "maakcopytrade")[:31],
                "type_time": mt5.ORDER_TIME_GTC, "type_filling": filling(sym)}
         if position:
             req["position"] = int(position)
@@ -85,7 +85,7 @@ def _worker(conn, cfg):  # runs in the child process
                     raise RuntimeError("position %s introuvable" % ticket)
                 p = ps[0]
                 vol = p.volume if volume is None else min(volume, p.volume)
-                res = deal(p.symbol, -vol if p.type == 0 else vol, position=p.ticket, comment="copytrade close")
+                res = deal(p.symbol, -vol if p.type == 0 else vol, position=p.ticket, comment="maakcopytrade close")
             elif cmd == "modify":
                 ticket, sl, tp = args
                 ps = mt5.positions_get(ticket=int(ticket))

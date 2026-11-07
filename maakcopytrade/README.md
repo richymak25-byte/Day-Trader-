@@ -1,4 +1,4 @@
-# CopyTrade Local
+# MaakCopyTrade
 
 Votre propre copieur de trades, dans l'esprit de Tradesyncer, qui tourne **sur votre machine** :
 un compte maitre, autant de comptes copieurs que vous voulez, des regles de risque de prop firm
@@ -17,9 +17,9 @@ sans librairie externe, fonctionne hors ligne).
 ## Demarrage rapide (mode demo)
 
 ```
-cd copytrader
-python -m copytrade futures --demo     # http://127.0.0.1:8710
-python -m copytrade cfd --demo         # http://127.0.0.1:8720
+cd maakcopytrade
+python -m maakcopytrade futures --demo     # http://127.0.0.1:8710
+python -m maakcopytrade cfd --demo         # http://127.0.0.1:8720
 ```
 
 Sous Windows : double-cliquez `start_futures.bat` ou `start_cfd.bat` (ajoutez `--demo` la premiere fois
@@ -98,7 +98,7 @@ pip install MetaTrader5
 ```
 Le paquet officiel ne pilote qu'**un terminal par processus**, donc : installez un terminal MT5 par compte
 (dossiers differents, copies portables) et renseignez pour chacun le chemin de son `terminal64.exe`,
-le login, le mot de passe et le serveur. CopyTrade lance un processus par compte. Activez
+le login, le mot de passe et le serveur. MaakCopyTrade lance un processus par compte. Activez
 "Algo Trading" dans chaque terminal.
 
 ## Securite et limites
@@ -117,6 +117,6 @@ Logiciel fourni tel quel, sans garantie. Ce n'est pas un conseil financier.
 ## Tests
 
 ```
-cd copytrader
+cd maakcopytrade
 python -m unittest discover -s tests
 ```

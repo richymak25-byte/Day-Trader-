@@ -5,12 +5,12 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from copytrade import instruments, stats  # noqa: E402
-from copytrade.connectors import simulator  # noqa: E402
-from copytrade.engine import Engine, floor_step  # noqa: E402
-from copytrade.models import Fill  # noqa: E402
-from copytrade.risk import RiskTracker, rules_from  # noqa: E402
-from copytrade.storage import Store  # noqa: E402
+from maakcopytrade import instruments, stats  # noqa: E402
+from maakcopytrade.connectors import simulator  # noqa: E402
+from maakcopytrade.engine import Engine, floor_step  # noqa: E402
+from maakcopytrade.models import Fill  # noqa: E402
+from maakcopytrade.risk import RiskTracker, rules_from  # noqa: E402
+from maakcopytrade.storage import Store  # noqa: E402
 
 
 def build(edition, followers):

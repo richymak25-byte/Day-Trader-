@@ -28,9 +28,9 @@ class TradovateConnector(Connector):
 
     def _auth(self):
         p = self.params
-        body = {"name": p.get("username"), "password": p.get("password"), "appId": p.get("app_id") or "CopyTrade",
+        body = {"name": p.get("username"), "password": p.get("password"), "appId": p.get("app_id") or "MaakCopyTrade",
                 "appVersion": p.get("app_version") or "1.0", "cid": p.get("cid"), "sec": p.get("sec"),
-                "deviceId": p.get("device_id") or "copytrade-local"}
+                "deviceId": p.get("device_id") or "maakcopytrade-local"}
         r = http_json("POST", self.base + "/auth/accesstokenrequest", body)
         if not r or "accessToken" not in r:
             raise ConnectorError("Authentification Tradovate refusee: %s" % (r or {}).get("errorText", r))
