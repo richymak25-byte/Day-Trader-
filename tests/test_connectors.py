@@ -199,6 +199,101 @@ class Connectors(unittest.TestCase):
             shutil.rmtree(tmp)
 
 
+class FakeMT5(object):
+    """Stands in for the MetaTrader5 package (Windows only)."""
+    def __init__(self, login=123456, deals=()):
+        self.info = type("Info", (), {"login": login, "server": "FTMO-Server2", "company": "FTMO"})()
+        self.deals, self.paths, self.logins, self.closed = list(deals), [], [], 0
+
+    def initialize(self, path=None, **kw):
+        self.paths.append(path)
+        return True
+
+    def account_info(self):
+        return self.info
+
+    def login(self, *a, **kw):
+        self.logins.append(a)
+        return True
+
+    def history_deals_get(self, a, b):
+        return self.deals
+
+    def last_error(self):
+        return (1, "x")
+
+    def shutdown(self):
+        self.closed += 1
+
+
+class MT5Attach(unittest.TestCase):
+    DEALS = [{"type": 0, "entry": 0, "position_id": 1, "symbol": "US30", "volume": 1, "price": 44000, "time": 1793800000,
+              "profit": 0, "commission": -3, "swap": 0, "fee": 0},
+             {"type": 1, "entry": 1, "position_id": 1, "symbol": "US30", "volume": 1, "price": 44050, "time": 1793800900,
+              "profit": 50, "commission": -3, "swap": 0, "fee": 0}]
+
+    def setUp(self):
+        import sys
+        self.tmp = tempfile.mkdtemp()
+        for d in ("FTMO Global Markets MT5 Terminal", "FundedNext MT5 Terminal"):
+            os.makedirs(os.path.join(self.tmp, d))
+            open(os.path.join(self.tmp, d, "terminal64.exe"), "w").close()
+        self.env = dict(os.environ)
+        for k in ("ProgramFiles", "ProgramFiles(x86)", "ProgramW6432", "LOCALAPPDATA"):
+            os.environ.pop(k, None)
+        os.environ["ProgramFiles"] = self.tmp
+        self.fake = FakeMT5(deals=self.DEALS)
+        sys.modules["MetaTrader5"] = self.fake
+
+    def tearDown(self):
+        import sys
+        sys.modules.pop("MetaTrader5", None)
+        os.environ.clear()
+        os.environ.update(self.env)
+        shutil.rmtree(self.tmp)
+
+    def test_attaches_to_the_firm_terminal_without_a_password(self):
+        _, t, _ = C.mt5({"name": "FTMO", "terminal": "ftmo"}, SINCE, "UTC")
+        self.assertIn("FTMO Global Markets", self.fake.paths[0])
+        self.assertEqual((t[0]["account"], t[0]["pnl"], t[0]["side"]), ("FTMO #123456", 44.0, "long"))
+        self.assertEqual((self.fake.logins, self.fake.closed), ([], 1))
+
+    def test_never_borrows_another_firm_terminal(self):
+        with self.assertRaises(C.ConnectorError) as cm:
+            C.mt5({"name": "FundingPips", "terminal": "fundingpips"}, SINCE, "UTC")
+        self.assertIn("--list-mt5", str(cm.exception))
+        self.assertEqual(self.fake.paths, [])
+
+    def test_never_switches_the_account_you_trade_on(self):
+        with self.assertRaises(C.ConnectorError) as cm:
+            C.mt5({"name": "FTMO", "login": 999}, SINCE, "UTC")
+        self.assertIn("123456", str(cm.exception))
+        self.assertEqual(self.fake.logins, [])
+        self.assertEqual(self.fake.closed, 1)
+
+    def test_switches_only_when_allowed(self):
+        C.mt5({"name": "FTMO", "login": 999, "allow_login": True, "password": "inv", "server": "S"}, SINCE, "UTC")
+        self.assertEqual(self.fake.logins, [(999,)])
+
+
+class WindowsFiles(unittest.TestCase):
+    def test_launchers_and_template(self):
+        root = os.path.dirname(C.__file__)
+        with open(os.path.join(root, "connectors.prop-firms.example.json"), encoding="utf-8") as fh:
+            conf = json.load(fh)
+        on = [c for c in conf["connectors"] if c.get("enabled", True)]
+        self.assertEqual([c["name"] for c in on], ["FTMO", "FundedNext", "FundingPips", "Foxx Funded", "Topstep", "Lucid"])
+        for c in conf["connectors"]:
+            self.assertIn(c["type"], C.TYPES)
+        for name in ("Installer MINDLOCK.bat", "Lancer MINDLOCK.bat"):
+            with open(os.path.join(root, "windows", name), "rb") as fh:
+                raw = fh.read()
+            self.assertIn(b"\r\n", raw)
+            self.assertNotIn(b"\n", raw.replace(b"\r\n", b""))
+            self.assertIn(b"mindlock-journal\\sync.py", raw)
+            raw.decode("ascii")  # plain ASCII: no codepage surprises in cmd.exe
+
+
 class ReadOnly(unittest.TestCase):
     def test_no_connector_can_send_an_order(self):
         with open(C.__file__, encoding="utf-8") as fh:

@@ -304,27 +304,92 @@ def tradovate(cfg, since, tz):
 
 # ---------------------------------------------------------------- MetaTrader 5 (Windows)
 
-def mt5(cfg, since, tz):
+def _mt5_module():
     try:
         import MetaTrader5 as mt  # noqa: N813 (official package name)
     except ImportError:
         raise ConnectorError("MetaTrader 5 needs Windows, the MT5 terminal and: pip install MetaTrader5")
-    kw = {}
-    for k in ("path", "server"):
-        if cfg.get(k):
-            kw[k] = cfg[k]
-    if cfg.get("login"):
-        kw["login"] = int(cfg["login"])
-        kw["password"] = secret(cfg, "password")
-    if not mt.initialize(**kw):
-        raise ConnectorError("MT5 initialize failed: %s" % (mt.last_error(),))
+    return mt
+
+
+def find_terminals():
+    """MT5 terminals installed on this Windows computer (each prop firm ships its own)."""
+    roots = []
+    for k in ("ProgramFiles", "ProgramFiles(x86)", "ProgramW6432", "LOCALAPPDATA"):
+        v = os.environ.get(k)
+        if v:
+            roots += [v, os.path.join(v, "Programs")]
+    found = []
+    for r in roots:
+        for exe in glob.glob(os.path.join(r, "*", "terminal64.exe")):
+            if exe not in found:
+                found.append(exe)
+    return found
+
+
+def pick_terminal(hint, terminals):
+    """The terminal whose folder name contains the hint ("ftmo", "fundednext"...), else None."""
+    h = re.sub(r"[^a-z0-9]", "", (hint or "").lower())
+    if not h:
+        return None
+    for exe in terminals:
+        if h in re.sub(r"[^a-z0-9]", "", os.path.basename(os.path.dirname(exe)).lower()):
+            return exe
+    return None
+
+
+def mt5(cfg, since, tz):
+    """Attach to the firm's MT5 terminal and read the account that is logged in there.
+    No password needed. It never switches the terminal to another account (that would
+    log you out while you trade) unless "allow_login": true with login, password, server."""
+    mt = _mt5_module()
+    hint = cfg.get("terminal") or cfg.get("name")
+    path = cfg.get("path") or pick_terminal(hint, find_terminals())
+    if not path:  # never fall back to another firm's terminal: its trades would land under this name
+        raise ConnectorError("no MT5 terminal matching '%s' found: run sync.py --list-mt5 and put its \"path\"" % hint)
+    if not mt.initialize(path=path):
+        raise ConnectorError("cannot open the MT5 terminal %s: %s" % (path, mt.last_error()))
     try:
-        deals = mt.history_deals_get(since.replace(tzinfo=None) - timedelta(days=1), datetime.now() + timedelta(days=1))
         info = mt.account_info()
+        want = int(cfg.get("login") or 0)
+        if want and (info is None or info.login != want):
+            if not cfg.get("allow_login"):
+                raise ConnectorError("the terminal is on account %s, not %s: open %s in MT5 and it syncs next time"
+                                     % (info.login if info else "none", want, want))
+            if not mt.login(want, password=secret(cfg, "password"), server=cfg.get("server")):
+                raise ConnectorError("MT5 login %s refused: %s" % (want, mt.last_error()))
+            info = mt.account_info()
+        if info is None:
+            raise ConnectorError("no account logged in this MT5 terminal")
+        deals = mt.history_deals_get(since.replace(tzinfo=None) - timedelta(days=1), datetime.now() + timedelta(days=2))
     finally:
         mt.shutdown()
-    name = cfg.get("name") or (str(info.login) if info else "MT5")
-    return [], mt5_trades(deals or [], name, cfg.get("time_shift_hours", 0)), {}
+    label = "%s #%s" % (cfg.get("name") or getattr(info, "company", "MT5"), info.login)
+    return [], mt5_trades(list(deals or []), label, cfg.get("time_shift_hours", 0)), {}
+
+
+def list_mt5(log=print):
+    """Show every MT5 terminal found and the account logged in each one."""
+    terms = find_terminals()
+    if not terms:
+        log("No MT5 terminal found in Program Files. Give its full path in \"path\".")
+        return []
+    try:
+        mt = _mt5_module()
+    except ConnectorError as err:
+        mt = None
+        log(str(err))
+    out = []
+    for exe in terms:
+        line = "  %s" % exe
+        if mt is not None and mt.initialize(path=exe):
+            info = mt.account_info()
+            if info:
+                line += "  ->  account %s on %s (%s)" % (info.login, info.server, info.company)
+            mt.shutdown()
+        log(line)
+        out.append(exe)
+    return out
 
 
 def mt5_trades(deals, account, shift_hours=0):

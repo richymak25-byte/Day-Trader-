@@ -1,31 +1,70 @@
 {
-  "_comment": "MINDLOCK setup for FTMO, Foxx Funded, FundingPips, FundedNext (CFD) and Topstep, Lucid (futures). Copy to trader/journal/connectors.json, fill in your accounts, set enabled to true. One block per account: copy a block to add another account. Use the INVESTOR (read-only) password for MT5. Never commit this file.",
+  "_comment": "MINDLOCK setup: FTMO, FundedNext, FundingPips, Foxx Funded on MT5, Topstep on TopstepX, Lucid on Tradovate. Copy to trader/journal/connectors.json (the Windows installer does it). MT5 needs no password: keep each firm's MT5 open, the journal reads the account logged in there. Several accounts at one firm: each one syncs whenever it is the account open in MT5, and its trades stay in the journal. Never commit this file.",
   "timezone": "local",
   "history_days": 120,
   "connectors": [
-    {"name": "FTMO", "type": "mt5", "login": 0, "password": "env:FTMO_INVESTOR_PASSWORD",
-     "server": "FTMO-Server", "path": "C:\\Program Files\\FTMO MetaTrader 5\\terminal64.exe", "enabled": false},
-
-    {"name": "FundedNext", "type": "mt5", "login": 0, "password": "env:FUNDEDNEXT_INVESTOR_PASSWORD",
-     "server": "FundedNext-Server", "enabled": false},
-
-    {"name": "FundingPips", "type": "mt5", "login": 0, "password": "env:FUNDINGPIPS_INVESTOR_PASSWORD",
-     "server": "FundingPips-Server", "enabled": false},
-
-    {"name": "Foxx Funded", "type": "mt5", "login": 0, "password": "env:FOXX_INVESTOR_PASSWORD",
-     "server": "FoxxFunded-Server", "enabled": false},
-
-    {"name": "Topstep", "type": "projectx", "base_url": "https://api.topstepx.com",
-     "username": "your_topstepx_username", "api_key": "env:TOPSTEPX_API_KEY", "enabled": false},
-
-    {"name": "Lucid (Tradovate)", "type": "tradovate", "username": "your_tradovate_username",
-     "password": "env:LUCID_TRADOVATE_PASSWORD", "cid": "env:TRADOVATE_CID", "sec": "env:TRADOVATE_SEC",
-     "enabled": false},
-
-    {"name": "cTrader / Match-Trader exports", "type": "folder", "path": "~/MINDLOCK/exports/cfd",
-     "pattern": "*.csv", "account": "CFD", "enabled": false},
-
-    {"name": "Lucid exports (Tradovate / R Trader Pro)", "type": "folder", "path": "~/MINDLOCK/exports/lucid",
-     "pattern": "*.csv", "account": "Lucid", "enabled": false}
-  ]
+    {
+      "name": "FTMO",
+      "type": "mt5",
+      "terminal": "ftmo"
+    },
+    {
+      "name": "FundedNext",
+      "type": "mt5",
+      "terminal": "fundednext"
+    },
+    {
+      "name": "FundingPips",
+      "type": "mt5",
+      "terminal": "fundingpips"
+    },
+    {
+      "name": "Foxx Funded",
+      "type": "mt5",
+      "terminal": "foxx"
+    },
+    {
+      "name": "Topstep",
+      "type": "projectx",
+      "base_url": "https://api.topstepx.com",
+      "username": "",
+      "api_key": ""
+    },
+    {
+      "name": "Lucid",
+      "type": "tradovate",
+      "username": "",
+      "password": "",
+      "cid": "",
+      "sec": ""
+    },
+    {
+      "_option": "Lucid without Tradovate API access: export the Performance report (CSV) into this folder",
+      "name": "Lucid exports",
+      "type": "folder",
+      "path": "~/MINDLOCK/exports/lucid",
+      "account": "Lucid",
+      "enabled": false
+    },
+    {
+      "_option": "accounts on cTrader or Match-Trader: export the history (CSV) into this folder",
+      "name": "cTrader / Match-Trader exports",
+      "type": "folder",
+      "path": "~/MINDLOCK/exports/cfd",
+      "account": "CFD",
+      "enabled": false
+    },
+    {
+      "_option": "an MT5 account the terminal is not logged in: lets the journal switch to it (investor password)",
+      "name": "FTMO 2",
+      "type": "mt5",
+      "terminal": "ftmo",
+      "login": 0,
+      "password": "env:FTMO2_INVESTOR_PASSWORD",
+      "server": "",
+      "allow_login": false,
+      "enabled": false
+    }
+  ],
+  "_secrets": "Paste your keys between the quotes. This file stays on your PC (trader/ is never sent to GitHub). Or write \"env:NAME\" to read a Windows environment variable."
 }

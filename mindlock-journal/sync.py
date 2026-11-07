@@ -563,14 +563,36 @@ def main(argv=None):
     p.add_argument("--csv", nargs="*", help="extra broker CSV exports to import")
     p.add_argument("--backup", help="the dashboard's backup file (default: trader/journal/mindlock-backup.json)")
     p.add_argument("--watch", type=int, default=0, help="re-sync every N seconds")
+    p.add_argument("--open", action="store_true", help="open the dashboard in the browser")
+    p.add_argument("--list-mt5", action="store_true", help="list the MT5 terminals on this computer and exit")
     p.add_argument("--serve", nargs="?", const=8765, type=int, metavar="PORT",
                    help="serve the dashboard on http://127.0.0.1:PORT with live updates (default 8765)")
     a = p.parse_args(argv)
+    if a.list_mt5:
+        import connectors
+        connectors.list_mt5()
+        return
     if not os.path.isfile(TEMPLATE):
         sys.exit("missing template: %s" % TEMPLATE)
-    build(a)
+    if a.serve:
+        try:
+            import socket
+            probe = socket.socket()
+            probe.bind(("127.0.0.1", a.serve))
+            probe.close()
+        except OSError:  # MINDLOCK already runs (started with Windows, or a second double-click)
+            print("MINDLOCK Journal already runs on http://127.0.0.1:%d" % a.serve)
+            if a.open:
+                import webbrowser
+                webbrowser.open("http://127.0.0.1:%d/" % a.serve)
+            return
+    out_html = build(a)
     if a.serve:
         serve(os.path.join(a.dir, "journal"), a.serve)
+    if a.open:
+        import webbrowser
+        webbrowser.open("http://127.0.0.1:%d/" % a.serve if a.serve else "file://" + os.path.abspath(out_html))
+    if a.serve:
         if a.watch <= 0:
             a.watch = 60
     try:

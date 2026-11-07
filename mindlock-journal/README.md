@@ -4,6 +4,35 @@ Ton journal de trading personnel, avec un dashboard complet, qui se remplit
 automatiquement. Un seul fichier HTML, aucune inscription, aucune dépendance,
 tes données restent sur ton appareil.
 
+## Installation sur Windows (FTMO, FundedNext, FundingPips, Foxx Funded, Topstep, Lucid)
+
+1. Installe **Python 3** depuis [python.org](https://www.python.org/downloads/windows/)
+   en cochant **« Add python.exe to PATH »**.
+2. Télécharge ce repo (bouton vert **Code > Download ZIP** sur GitHub) et dézippe-le.
+3. Double-clique **`mindlock-journal\windows\Installer MINDLOCK.bat`**. Il :
+   - installe le module MetaTrader5,
+   - crée ta configuration `trader\journal\connectors.json`,
+   - liste les terminaux MT5 trouvés sur ton PC et le compte ouvert dans chacun,
+   - propose de lancer MINDLOCK au démarrage de Windows.
+4. Dans le fichier qui s'ouvre, complète **Topstep** (`username` + `api_key` de
+   TopstepX, Réglages > API) et **Lucid** (identifiants Tradovate + `cid` / `sec`
+   de l'accès API Tradovate). Enregistre.
+5. Double-clique **`mindlock-journal\windows\Lancer MINDLOCK.bat`** : le dashboard
+   s'ouvre et se met à jour seul toutes les 60 secondes.
+
+**MT5 (FTMO, FundedNext, FundingPips, Foxx Funded) : aucun mot de passe.** Garde
+le terminal MT5 de chaque firm ouvert : le journal lit le compte connecté dedans.
+Il ne change jamais de compte à ta place (ça te déconnecterait pendant que tu
+trades). Tu as plusieurs comptes chez une firm ? Chacun se synchronise quand il
+est le compte ouvert dans MT5, et ses trades restent ensuite dans le journal.
+Si un terminal n'est pas trouvé, le journal ne prend jamais celui d'une autre
+firm : lance `py mindlock-journal\sync.py --list-mt5` et copie son chemin dans `"path"`.
+
+**Lucid (Tradovate)** : l'accès API est une option payante de Tradovate et
+certaines prop firms le désactivent. Sans accès API, active le bloc
+« Lucid exports » et dépose l'export *Performance* (CSV) de Tradovate dans
+`~/MINDLOCK/exports/lucid` : il est importé tout seul.
+
 ## Démarrer en 10 secondes
 
 Ouvre `mindlock-journal/index.html` dans ton navigateur, puis :
