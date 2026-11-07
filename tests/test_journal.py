@@ -25,6 +25,13 @@ class Parsing(unittest.TestCase):
         self.assertEqual(sync.parse_time("11/06/2026 01:50:00 PM"), "2026-11-06 13:50:00")
         self.assertEqual(sync.parse_time("20261104;093510"), "2026-11-04 09:35:10")
 
+    def test_day_or_month_first_is_decided_per_file(self):
+        rows = lambda *d: "time,symbol,side,qty,price\n" + "".join("%s 10:00,AAPL,buy,1,1\n" % x for x in d)
+        self.assertEqual(sync.parse_csv(rows("05/11/2026"))[0][0]["time"], "2026-11-05 10:00:00")  # French default
+        self.assertEqual(sync.parse_csv(rows("05/11/2026", "05/13/2026"))[0][0]["time"], "2026-05-11 10:00:00")
+        self.assertEqual(sync.parse_csv(rows("05/11/2026", "25/11/2026"))[0][0]["time"], "2026-11-05 10:00:00")
+        self.assertEqual(sync.parse_csv(rows("05.11.2026"))[0][0]["time"], "2026-11-05 10:00:00")
+
     def test_sides(self):
         self.assertEqual(sync.parse_side("BOT"), "buy")
         self.assertEqual(sync.parse_side("Achat"), "buy")
@@ -75,6 +82,21 @@ class Pairing(unittest.TestCase):
         execs, closed = sync.parse_csv(text)
         self.assertEqual(len(execs), 0)
         self.assertEqual((closed[0]["side"], closed[0]["pnl"], closed[0]["fees"]), ("short", 193.0, 7.0))
+
+    def test_ctrader_history_export(self):
+        text = ("ID,Symbol,Opening Direction,Opening Time (UTC+1),Closing Time (UTC+1),Entry Price,Closing Price,"
+                "Closing Quantity,Commission,Gross USD,Net USD\n"
+                "123,XAUUSD,Sell,05/11/2026 14:00:00,05/11/2026 15:10:00,2410.50,2400.50,0.50 Lots,-3.50,500.00,496.50\n")
+        _, closed = sync.parse_csv(text)
+        t = closed[0]
+        self.assertEqual((t["symbol"], t["side"], t["qty"], t["entry"], t["exit"]), ("XAUUSD", "short", 0.5, 2410.5, 2400.5))
+        self.assertEqual((t["pnl"], t["openTime"], t["closeTime"]), (496.5, "2026-11-05 14:00:00", "2026-11-05 15:10:00"))
+
+    def test_match_trader_history_export(self):
+        text = ("ID,Open time,Symbol,Side,Volume,Open price,Close time,Close price,Swap,Commission,Profit\n"
+                "9,2026-11-05 09:00:00,US100,BUY,1.00,21000.0,2026-11-05 09:30:00,21050.0,0,-5.00,50.00\n")
+        _, closed = sync.parse_csv(text)
+        self.assertEqual((closed[0]["side"], closed[0]["pnl"], closed[0]["fees"]), ("long", 45.0, 5.0))
 
     def test_tradovate_sold_first_is_a_short(self):
         text = ("symbol,qty,buyPrice,sellPrice,pnl,boughtTimestamp,soldTimestamp\n"

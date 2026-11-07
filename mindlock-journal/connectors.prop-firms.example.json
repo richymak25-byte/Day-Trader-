@@ -1,0 +1,31 @@
+{
+  "_comment": "MINDLOCK setup for FTMO, Foxx Funded, FundingPips, FundedNext (CFD) and Topstep, Lucid (futures). Copy to trader/journal/connectors.json, fill in your accounts, set enabled to true. One block per account: copy a block to add another account. Use the INVESTOR (read-only) password for MT5. Never commit this file.",
+  "timezone": "local",
+  "history_days": 120,
+  "connectors": [
+    {"name": "FTMO", "type": "mt5", "login": 0, "password": "env:FTMO_INVESTOR_PASSWORD",
+     "server": "FTMO-Server", "path": "C:\\Program Files\\FTMO MetaTrader 5\\terminal64.exe", "enabled": false},
+
+    {"name": "FundedNext", "type": "mt5", "login": 0, "password": "env:FUNDEDNEXT_INVESTOR_PASSWORD",
+     "server": "FundedNext-Server", "enabled": false},
+
+    {"name": "FundingPips", "type": "mt5", "login": 0, "password": "env:FUNDINGPIPS_INVESTOR_PASSWORD",
+     "server": "FundingPips-Server", "enabled": false},
+
+    {"name": "Foxx Funded", "type": "mt5", "login": 0, "password": "env:FOXX_INVESTOR_PASSWORD",
+     "server": "FoxxFunded-Server", "enabled": false},
+
+    {"name": "Topstep", "type": "projectx", "base_url": "https://api.topstepx.com",
+     "username": "your_topstepx_username", "api_key": "env:TOPSTEPX_API_KEY", "enabled": false},
+
+    {"name": "Lucid (Tradovate)", "type": "tradovate", "username": "your_tradovate_username",
+     "password": "env:LUCID_TRADOVATE_PASSWORD", "cid": "env:TRADOVATE_CID", "sec": "env:TRADOVATE_SEC",
+     "enabled": false},
+
+    {"name": "cTrader / Match-Trader exports", "type": "folder", "path": "~/MINDLOCK/exports/cfd",
+     "pattern": "*.csv", "account": "CFD", "enabled": false},
+
+    {"name": "Lucid exports (Tradovate / R Trader Pro)", "type": "folder", "path": "~/MINDLOCK/exports/lucid",
+     "pattern": "*.csv", "account": "Lucid", "enabled": false}
+  ]
+}

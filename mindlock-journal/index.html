@@ -357,21 +357,21 @@ function multiplier(sym){
 }
 const COLS={
   symbol:["symbol","ticker","instrument","contract","item","symbole","underlying","market","asset","actif","pair","paire","contractname"],
-  side:["side","action","buysell","bs","direction","sens","type","transactiontype"],
-  qty:["qty","quantity","shares","size","volume","lots","lot","filledqty","quantite","qte","contracts","positionsize","filled","amount"],
+  side:["side","action","buysell","bs","direction","sens","type","transactiontype","openingdirection","tradeside"],
+  qty:["qty","quantity","shares","size","volume","lots","lot","filledqty","quantite","qte","contracts","positionsize","filled","amount","closingquantity","closingvolume","volumelots","lotsize"],
   price:["price","fillprice","avgprice","averageprice","executionprice","execprice","prix","tradeprice","avgfillprice","filledprice"],
   time:["datetime","time","timestamp","executedat","filledat","executiontime","filltime","transacttime","filledtime","dateheure","date","tradedate"],
   clock:["time","heure","executiontime"],
   fees:["commission","commissions","fees","fee","comm","frais","commfee","totalfees"],
   swap:["swap","swaps"],
-  openTime:["opentime","entrytime","entrydate","opendate","dateouverture","heureouverture","boughttimestamp","openedat"],
-  closeTime:["closetime","exittime","exitdate","closedate","datefermeture","heurefermeture","soldtimestamp","closedat"],
+  openTime:["opentime","entrytime","entrydate","opendate","dateouverture","heureouverture","boughttimestamp","openedat","openingtime","opendatetime"],
+  closeTime:["closetime","exittime","exitdate","closedate","datefermeture","heurefermeture","soldtimestamp","closedat","closingtime","closedatetime"],
   entry:["openprice","entryprice","prixouverture","prixentree","buyprice"],
-  exit:["closeprice","exitprice","prixfermeture","prixsortie","sellprice"],
+  exit:["closeprice","exitprice","prixfermeture","prixsortie","sellprice","closingprice"],
   account:["account","accountid","accountname","acct","compte","accountnumber","login"],
-  pnl:["profit","pnl","pl","netpnl","realizedpnl","profitloss","gain","resultat","netprofit","realizedpl"]
+  pnl:["profit","pnl","pl","netpnl","realizedpnl","profitloss","gain","resultat","netprofit","realizedpl","netusd","neteur","netgbp","netchf","netcad","netaud","net","grossusd","grosseur"]
 };
-const norm=s=>String(s==null?"":s).normalize("NFKD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+const norm=s=>String(s==null?"":s).normalize("NFKD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"").replace(/(.)(utc|gmt)\d{0,4}$/,"$1");
 function parseNum(v){
   if(v==null)return null;let s=String(v).trim();if(!s)return null;
   let neg=/\(.*\)/.test(s)||s.includes("-");s=s.replace(/[^0-9,.]/g,"");if(!s)return null;
@@ -380,15 +380,22 @@ function parseNum(v){
   const n=parseFloat(s);if(isNaN(n))return null;return neg?-n:n;
 }
 function pad(n){return String(n).padStart(2,"0");}
-function parseTime(v){
+const SLASH_DATE=/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})\b/;
+function dateOrder(header,rows,cols){
+  if(header.some(h=>norm(h)==="boughttimestamp"))return "mdy"; // Tradovate exports are always US style
+  for(const r of rows)for(const i of cols){if(i==null||i>=r.length)continue;const m=String(r[i]).trim().match(SLASH_DATE);
+    if(m){if(+m[1]>12)return "dmy";if(+m[2]>12)return "mdy";}}
+  return S.settings.dateOrder||"dmy";
+}
+function parseTime(v,order){
   if(v==null)return null;let s=String(v).trim().replace(/,/g," ").replace(/\s+/g," ");if(!s)return null;
   s=s.replace(/\s+(EST|EDT|ET|UTC|GMT|CET|CEST)$/i,"");
   let m;
   if((m=s.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})(?:[T ;](\d{1,2}):(\d{2})(?::(\d{2}))?)?/)))return `${m[1]}-${pad(m[2])}-${pad(m[3])} ${pad(m[4]||0)}:${m[5]||"00"}:${m[6]||"00"}`;
   if((m=s.match(/^(\d{4})(\d{2})(\d{2})[ ;](\d{2}):?(\d{2}):?(\d{2})/)))return `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}`;
-  if((m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?/i))){
+  if((m=s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?/i))){
     let a=+m[1],b=+m[2],y=+m[3];if(y<100)y+=2000;let mo=a,d=b;
-    if(a>12)[mo,d]=[b,a]; // day first
+    if(order==="dmy"||(!order&&a>12))[mo,d]=[b,a]; // day first
     let h=+(m[4]||0);if(m[7]){const pm=m[7].toUpperCase()==="PM";if(pm&&h<12)h+=12;if(!pm&&h===12)h=0;}
     return `${y}-${pad(mo)}-${pad(d)} ${pad(h)}:${m[5]||"00"}:${m[6]||"00"}`;
   }
@@ -420,12 +427,12 @@ function findCols(header){
 }
 function parseCSV(text,source){
   const [header,rows]=splitCSV(text);const {f:c,keys}=findCols(header);const g=(r,k)=>c[k]!=null?r[c[k]]:null;
-  const execs=[],trades=[];
+  const execs=[],trades=[],order=dateOrder(header,rows,[c.time,c.openTime,c.closeTime]);
   const closedFmt=c.symbol!=null&&((c.entry!=null&&c.exit!=null)||(c.pnl!=null&&c.openTime!=null));
   if(closedFmt){
     for(const r of rows){
       const sym=String(g(r,"symbol")||"").trim().toUpperCase();
-      let ot=parseTime(g(r,"openTime")||g(r,"time")),ct=parseTime(g(r,"closeTime"));
+      let ot=parseTime(g(r,"openTime")||g(r,"time"),order),ct=parseTime(g(r,"closeTime"),order);
       const qty=Math.abs(parseNum(g(r,"qty"))||0);let side=parseSide(g(r,"side")||"");
       if(!side&&c.openTime!=null&&keys[c.openTime]==="boughttimestamp"&&ot&&ct){side=ot<=ct?"buy":"sell";if(side==="sell")[ot,ct]=[ct,ot];}
       if(!sym||!side||!ot)continue;
@@ -435,7 +442,7 @@ function parseCSV(text,source){
       let pnl=parseNum(g(r,"pnl"));const mult=multiplier(sym),d=side==="buy"?1:-1;
       if(pnl==null&&entry!=null&&exit!=null)pnl=d*(exit-entry)*qty*mult;if(pnl==null)continue;
       const acct=String(g(r,"account")||"").trim();
-      trades.push({id:tradeId((acct?[acct]:[]).concat([sym,ot,ct,side,qty,entry])),symbol:sym,account:acct,side:side==="buy"?"long":"short",qty,entry,exit,openTime:ot,closeTime:ct||ot,fees:+fee.toFixed(2),pnl:+(pnl-fee).toFixed(2),status:"closed",source,multiplier:mult,executions:[]});
+      trades.push({id:tradeId((acct?[acct]:[]).concat([sym,ot,ct,side,qty,entry])),symbol:sym,account:acct,side:side==="buy"?"long":"short",qty,entry,exit,openTime:ot,closeTime:ct||ot,fees:+fee.toFixed(2),pnl:+((c.pnl!=null&&keys[c.pnl].startsWith("net"))?pnl:pnl-fee).toFixed(2),status:"closed",source,multiplier:mult,executions:[]});
     }
     return {execs,trades};
   }
@@ -443,7 +450,7 @@ function parseCSV(text,source){
     const sym=String(g(r,"symbol")||"").trim().toUpperCase();const q=parseNum(g(r,"qty")),price=parseNum(g(r,"price"));
     let side=c.side!=null?parseSide(g(r,"side")||""):null;if(!side&&q!=null&&c.side==null)side=q<0?"sell":"buy";
     let t=g(r,"time");if(c.clock!=null&&c.clock!==c.time&&g(r,"clock"))t=t+" "+g(r,"clock");
-    const when=parseTime(t);if(!sym||!side||!q||!price||!when)continue;
+    const when=parseTime(t,order);if(!sym||!side||!q||!price||!when)continue;
     execs.push({time:when,symbol:sym,side,qty:Math.abs(q),price,fee:Math.abs(parseNum(g(r,"fees"))||0),source,account:String(g(r,"account")||"").trim()});
   }
   return {execs,trades};
@@ -857,6 +864,7 @@ python3 mindlock-journal/sync.py --watch 60   # en continu</pre>
   <div class="card"><h3>Réglages</h3><div class="form">
     <label>Devise<select id="stCur">${["USD","EUR","CAD","CHF","GBP","XOF","MAD"].map(c=>`<option ${s.currency===c?"selected":""}>${c}</option>`).join("")}</select></label>
     <label>Capital de départ<input type="number" id="stBal" value="${esc(s.startBalance)}"></label>
+    <label class="full">Dates ambiguës dans les CSV (ex. 05/11/2026)<select id="stDate"><option value="dmy" ${s.dateOrder!=="mdy"?"selected":""}>Jour / mois (5 novembre)</option><option value="mdy" ${s.dateOrder==="mdy"?"selected":""}>Mois / jour, format US (11 mai)</option></select></label>
     <label class="full">Multiplicateurs (futures, un par ligne : SYMBOLE=valeur du point)<textarea id="stMult" rows="3" placeholder="NQ=20&#10;MNQ=2">${esc(Object.entries(s.multipliers||{}).map(([a,b])=>a+"="+b).join("\n"))}</textarea></label>
     <label class="full">Liste des erreurs (une par ligne)<textarea id="stMis" rows="5">${esc((s.mistakes||[]).join("\n"))}</textarea></label>
   </div><div style="margin-top:14px;text-align:right"><button class="btn primary" onclick="saveSettings()">Enregistrer</button></div>
@@ -876,7 +884,7 @@ python3 mindlock-journal/sync.py --watch 60   # en continu</pre>
   </div></div>`;
 }
 function saveSettings(){
-  const s=S.settings;s.currency=$("#stCur").value;s.startBalance=+$("#stBal").value||0;
+  const s=S.settings;s.currency=$("#stCur").value;s.dateOrder=$("#stDate").value;s.startBalance=+$("#stBal").value||0;
   s.multipliers={};$("#stMult").value.split("\n").forEach(l=>{const [a,b]=l.split("=");if(a&&b&&!isNaN(+b))s.multipliers[a.trim().toUpperCase()]=+b;});
   s.mistakes=$("#stMis").value.split("\n").map(x=>x.trim()).filter(Boolean);save();render();toast("Réglages enregistrés");
 }

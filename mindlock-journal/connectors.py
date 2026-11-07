@@ -468,7 +468,8 @@ def folder(cfg, since, tz):
         with open(f, encoding="utf-8-sig", errors="replace") as fh:
             e, t = s.parse_csv(fh.read(), source=os.path.basename(f))
         for x in e + t:
-            x.setdefault("account", cfg.get("account", ""))
+            if not x.get("account"):
+                x["account"] = cfg.get("account", "")
         execs += e
         trades += t
     return execs, trades, {}

@@ -48,9 +48,11 @@ USER_FIELDS = ("setup", "tags", "mistakes", "emotion", "rating", "notes", "follo
 COLS = {
     "symbol": ["symbol", "ticker", "instrument", "contract", "item", "symbole", "underlying",
                "market", "asset", "actif", "pair", "paire", "contractname"],
-    "side": ["side", "action", "buysell", "bs", "direction", "sens", "type", "transactiontype"],
+    "side": ["side", "action", "buysell", "bs", "direction", "sens", "type", "transactiontype",
+             "openingdirection", "tradeside"],
     "qty": ["qty", "quantity", "shares", "size", "volume", "lots", "lot", "filledqty", "quantite",
-            "qte", "contracts", "positionsize", "filled", "amount"],
+            "qte", "contracts", "positionsize", "filled", "amount", "closingquantity", "closingvolume",
+            "volumelots", "lotsize"],
     "price": ["price", "fillprice", "avgprice", "averageprice", "executionprice", "execprice", "prix",
               "tradeprice", "avgfillprice", "filledprice"],
     "time": ["datetime", "time", "timestamp", "executedat", "filledat", "executiontime", "filltime",
@@ -59,20 +61,22 @@ COLS = {
     "fees": ["commission", "commissions", "fees", "fee", "comm", "frais", "commfee", "totalfees"],
     "swap": ["swap", "swaps"],
     "openTime": ["opentime", "entrytime", "entrydate", "opendate", "dateouverture", "heureouverture",
-                 "boughttimestamp", "openedat"],
+                 "boughttimestamp", "openedat", "openingtime", "opendatetime"],
     "closeTime": ["closetime", "exittime", "exitdate", "closedate", "datefermeture", "heurefermeture",
-                  "soldtimestamp", "closedat"],
+                  "soldtimestamp", "closedat", "closingtime", "closedatetime"],
     "entry": ["openprice", "entryprice", "prixouverture", "prixentree", "buyprice"],
-    "exit": ["closeprice", "exitprice", "prixfermeture", "prixsortie", "sellprice"],
+    "exit": ["closeprice", "exitprice", "prixfermeture", "prixsortie", "sellprice", "closingprice"],
     "account": ["account", "accountid", "accountname", "acct", "compte", "accountnumber", "login"],
     "pnl": ["profit", "pnl", "pl", "netpnl", "realizedpnl", "profitloss", "gain", "resultat",
-            "netprofit", "realizedpl"],
+            "netprofit", "realizedpl", "netusd", "neteur", "netgbp", "netchf", "netcad", "netaud", "net",
+            "grossusd", "grosseur"],
 }
 
 
 def norm(s):
     s = unicodedata.normalize("NFKD", str(s)).encode("ascii", "ignore").decode("ascii")
-    return re.sub(r"[^a-z0-9]", "", s.lower())
+    s = re.sub(r"[^a-z0-9]", "", s.lower())
+    return re.sub(r"(.)(utc|gmt)\d{0,4}$", r"\1", s)  # cTrader: "Closing Time (UTC+1)"
 
 
 def multiplier(symbol, overrides=None):
@@ -117,7 +121,26 @@ TIME_FORMATS = ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M:%S", "%Y-
                 "%Y%m%d %H:%M:%S", "%Y%m%d;%H%M%S", "%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%Y.%m.%d"]
 
 
-def parse_time(v):
+DATE_ORDER = "dmy"  # 05/11/2026 is 5 November unless the file shows otherwise (config.json "date_order")
+SLASH_DATE = re.compile(r"^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})\b(.*)$")
+
+
+def date_order(header, rows, cols):
+    """Day first or month first for a whole file: a day above 12 decides, else the default."""
+    if any(norm(h) == "boughttimestamp" for h in header):
+        return "mdy"  # Tradovate exports are always US style
+    for row in rows:
+        for i in cols:
+            m = SLASH_DATE.match(row[i].strip()) if i is not None and i < len(row) else None
+            if m:
+                if int(m.group(1)) > 12:
+                    return "dmy"
+                if int(m.group(2)) > 12:
+                    return "mdy"
+    return DATE_ORDER
+
+
+def parse_time(v, order=None):
     """Any common timestamp to 'YYYY-MM-DD HH:MM:SS' (local exchange time, offset dropped)."""
     if v is None:
         return None
@@ -125,6 +148,16 @@ def parse_time(v):
     if not s:
         return None
     s = re.sub(r"\s+", " ", s)
+    m = SLASH_DATE.match(s) if order else None
+    if m:
+        a, b, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        d, mo = (a, b) if order == "dmy" else (b, a)
+        s = "%04d-%02d-%02d%s" % (y + 2000 if y < 100 else y, mo, d, m.group(4))
+        s = re.sub(r"\s+", " ", s)
+        hm = re.match(r"^(\d{4}-\d{2}-\d{2}) (\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$", s, re.I)
+        if hm:
+            h = int(hm.group(2)) % 12 + (12 if hm.group(5).upper() == "PM" else 0)
+            s = "%s %02d:%s:%s" % (hm.group(1), h, hm.group(3), hm.group(4) or "00")
     s = re.sub(r"^(\d{4}-\d{2}-\d{2});", r"\1 ", s)
     s = re.sub(r"(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$", "", s) if re.match(r"^\d{4}-\d{2}-\d{2}T", s) else s
     s = re.sub(r"\s+(EST|EDT|ET|UTC|GMT|CET|CEST)$", "", s, flags=re.I)
@@ -212,12 +245,15 @@ def parse_csv(text, source="csv", overrides=None):
         i = c.get(k)
         return row[i] if i is not None and i < len(row) else None
 
+    order = date_order(header, rows, [c.get(k) for k in ("time", "openTime", "closeTime")])
+
     execs, trades = [], []
     closed_format = "symbol" in c and (("entry" in c and "exit" in c) or ("pnl" in c and "openTime" in c))
     if closed_format:
         for row in rows:
             sym = (g(row, "symbol") or "").strip().upper()
-            ot, ct = parse_time(g(row, "openTime") or g(row, "time")), parse_time(g(row, "closeTime"))
+            ot = parse_time(g(row, "openTime") or g(row, "time"), order)
+            ct = parse_time(g(row, "closeTime"), order)
             qty = abs(parse_num(g(row, "qty")) or 0)
             side = parse_side(g(row, "side") or "")
             bought_first = norm(header[c["openTime"]]) == "boughttimestamp" if "openTime" in c else False
@@ -244,7 +280,8 @@ def parse_csv(text, source="csv", overrides=None):
                 pnl = d * (exit_ - entry) * qty * mult
             if pnl is None:
                 continue
-            net = pnl - fee
+            already_net = "pnl" in c and norm(header[c["pnl"]]).startswith("net")  # cTrader "Net USD"
+            net = pnl if already_net else pnl - fee
             acct = (g(row, "account") or "").strip()
             key = ([acct] if acct else []) + [sym, ot, ct, side, qty, entry]
             trades.append({
@@ -264,7 +301,7 @@ def parse_csv(text, source="csv", overrides=None):
         t = g(row, "time")
         if "clock" in c and c.get("clock") != c.get("time") and g(row, "clock"):
             t = "%s %s" % (t, g(row, "clock"))
-        when = parse_time(t)
+        when = parse_time(t, order)
         if not sym or not side or not q or not price or not when:
             continue
         execs.append({"time": when, "symbol": sym, "side": side, "qty": abs(q), "price": price,
@@ -419,9 +456,12 @@ def build(args):
     overrides = {}
     jdir = os.path.join(args.dir, "journal")
     cfg_path = os.path.join(jdir, "config.json")
+    global DATE_ORDER
     if os.path.isfile(cfg_path):
         with open(cfg_path, encoding="utf-8") as fh:
-            overrides = json.load(fh).get("multipliers", {})
+            jcfg = json.load(fh)
+        overrides = jcfg.get("multipliers", {})
+        DATE_ORDER = jcfg.get("date_order", DATE_ORDER)
     execs = broker_fills(os.path.join(args.dir, "state", "broker.json"))
     closed = []
     files = sorted(glob.glob(os.path.join(jdir, "import", "*.csv"))) + list(args.csv or [])

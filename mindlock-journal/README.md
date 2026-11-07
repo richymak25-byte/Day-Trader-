@@ -78,6 +78,16 @@ Plusieurs comptes ? Le filtre **Compte** et le rapport **Par compte** les sépar
 - Les connecteurs ont été testés avec des réponses d'API simulées. Avec ton
   premier vrai compte, vérifie que les premiers trades importés sont corrects.
 
+### Modèle prêt pour FTMO, Foxx Funded, FundingPips, FundedNext, Topstep et Lucid
+
+`connectors.prop-firms.example.json` contient un bloc par prop firm. Pour chaque
+compte : numéro, mot de passe **investisseur** (lecture seule) et nom exact du
+serveur tel qu'il apparaît dans l'e-mail d'identifiants ou la fenêtre de connexion
+MT5. Plusieurs comptes chez la même firm : copie le bloc et change `name`
+(ex. `"FTMO 100K #2"`). Comptes sur cTrader ou Match-Trader : exporte l'historique
+en CSV dans le dossier `exports/cfd`. Les dates `05/11/2026` sont lues au format
+français, sauf si le fichier prouve le contraire (réglable dans Import & Réglages).
+
 ## Ce que fait le dashboard
 
 | Vue | Contenu |
