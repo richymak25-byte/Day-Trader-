@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CopyTrade</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="logo" aria-hidden="true">&#8644;</span> <span id="title">CopyTrade</span> <span id="edition" class="badge"></span></div>
+  <div class="top-actions">
+    <span class="lat" id="latency" title="Latence moyenne de copie">Latence: -</span>
+    <button id="copyToggle" class="btn big">...</button>
+    <button id="flattenAll" class="btn danger">Tout aplatir</button>
+    <button id="themeToggle" class="btn ghost" title="Theme clair / sombre">&#9680;</button>
+  </div>
+</header>
+<nav class="tabs" id="tabs">
+  <button data-view="dash" class="active">Dashboard</button>
+  <button data-view="accounts">Comptes</button>
+  <button data-view="positions">Positions</button>
+  <button data-view="stats">Statistiques</button>
+  <button data-view="trades">Trades</button>
+  <button data-view="execs">Executions</button>
+  <button data-view="journal">Journal</button>
+  <button data-view="settings">Parametres</button>
+</nav>
+<main>
+  <section id="view-dash" class="view active">
+    <div class="kpis" id="dashKpis"></div>
+    <h2>Comptes</h2>
+    <div class="cards" id="acctCards"></div>
+    <div class="grid2">
+      <div class="panel"><h3>Courbe d'equity des copieurs (30 j)</h3><div class="chart" id="dashEquity"></div></div>
+      <div class="panel"><h3>P&amp;L journalier des copieurs (30 j)</h3><div class="chart" id="dashDaily"></div></div>
+    </div>
+    <div class="panel"><h3>Dernieres executions</h3><div class="tablewrap" id="dashExecs"></div></div>
+  </section>
+
+  <section id="view-accounts" class="view">
+    <div class="row-between"><h2>Comptes</h2><button class="btn primary" id="addAcct">+ Ajouter un compte</button></div>
+    <div class="tablewrap" id="acctTable"></div>
+    <p class="hint">Un compte <b>maitre</b> est celui que vous tradez. Les comptes <b>copieurs</b> reproduisent ses positions
+      selon leurs reglages (multiplicateur, mapping de symboles, lots) et sont proteges par leurs regles de risque.</p>
+  </section>
+
+  <section id="view-positions" class="view">
+    <h2>Positions ouvertes</h2>
+    <div class="tablewrap" id="posTable"></div>
+  </section>
+
+  <section id="view-stats" class="view">
+    <div class="filters">
+      <label>Compte <select id="fAccount"></select></label>
+      <label>Periode <select id="fDays">
+        <option value="1">Aujourd'hui</option><option value="7">7 jours</option>
+        <option value="30" selected>30 jours</option><option value="90">90 jours</option>
+        <option value="365">1 an</option><option value="0">Tout</option></select></label>
+      <button class="btn" id="fRefresh">Actualiser</button>
+    </div>
+    <div class="kpis" id="statKpis"></div>
+    <div class="grid2">
+      <div class="panel"><h3>Courbe d'equity</h3><div class="chart" id="stEquity"></div></div>
+      <div class="panel"><h3>P&amp;L par jour</h3><div class="chart" id="stDaily"></div></div>
+    </div>
+    <div class="grid2">
+      <div class="panel"><h3>Calendrier</h3><div id="stCalendar"></div></div>
+      <div class="panel"><h3>Long / Short</h3><div id="stSides"></div><h3 class="mt">Par symbole</h3><div id="stSymbol"></div></div>
+    </div>
+    <div class="grid2">
+      <div class="panel"><h3>P&amp;L par heure d'entree</h3><div class="chart" id="stHour"></div></div>
+      <div class="panel"><h3>P&amp;L par jour de semaine</h3><div class="chart" id="stWeekday"></div></div>
+    </div>
+    <div class="panel"><h3>Detail des statistiques</h3><div class="tablewrap" id="stTable"></div></div>
+  </section>
+
+  <section id="view-trades" class="view">
+    <div class="row-between"><h2>Historique des trades</h2>
+      <div class="filters"><label>Compte <select id="tAccount"></select></label>
+        <a class="btn" id="csvLink" href="/api/trades.csv">Exporter CSV</a></div></div>
+    <div class="tablewrap" id="tradeTable"></div>
+  </section>
+
+  <section id="view-execs" class="view">
+    <h2>Executions de copie</h2>
+    <div class="tablewrap" id="execTable"></div>
+  </section>
+
+  <section id="view-journal" class="view">
+    <h2>Journal</h2>
+    <div class="tablewrap" id="eventTable"></div>
+  </section>
+
+  <section id="view-settings" class="view">
+    <h2>Parametres</h2>
+    <div class="panel">
+      <label class="check"><input type="checkbox" id="syncOnStart"> Copier aussi les positions deja ouvertes sur le maitre au demarrage de la copie</label>
+      <p class="hint">Desactive par defaut: seules les nouvelles positions du maitre, ouvertes apres le demarrage, sont copiees.</p>
+    </div>
+    <div class="panel" id="aboutPanel"></div>
+  </section>
+</main>
+
+<dialog id="acctDialog">
+  <form id="acctForm" method="dialog">
+    <h2 id="dlgTitle">Compte</h2>
+    <div class="formgrid">
+      <label>Nom <input name="name" required></label>
+      <label>Role <select name="role"><option value="leader">Maitre (source)</option><option value="follower">Copieur</option></select></label>
+      <label class="only-follower">Compte maitre <select name="leader_id"></select></label>
+      <label>Connecteur <select name="connector"></select></label>
+      <label class="check"><input type="checkbox" name="enabled" checked> Compte actif</label>
+    </div>
+    <fieldset><legend>Connexion</legend><div class="formgrid" id="connFields"></div></fieldset>
+    <fieldset id="copyFs"><legend>Copie</legend><div class="formgrid" id="copyFields"></div></fieldset>
+    <fieldset><legend>Regles de risque</legend>
+      <div class="formgrid">
+        <label>Preset prop firm <select id="presetSel"></select></label>
+        <label>Solde de depart <input type="number" step="any" name="r.start_balance"></label>
+        <label>Perte journaliere max ($, 0 = off) <input type="number" step="any" name="r.daily_loss_limit"></label>
+        <label>Drawdown max ($, 0 = off) <input type="number" step="any" name="r.max_drawdown"></label>
+        <label>Type de drawdown <select name="r.drawdown_type">
+          <option value="static">Statique</option><option value="trailing_eod">Trailing fin de journee</option>
+          <option value="trailing_intraday">Trailing intraday</option></select></label>
+        <label>Blocage du trailing a depart + <input type="number" step="any" name="r.lock_offset"></label>
+        <label>Objectif de profit ($) <input type="number" step="any" name="r.profit_target"></label>
+        <label class="check"><input type="checkbox" name="r.stop_on_target"> Arreter a l'objectif</label>
+        <label>Marge de securite ($) <input type="number" step="any" name="r.safety_buffer"></label>
+        <label>Taille max par symbole <input type="number" step="any" name="r.max_qty"></label>
+        <label>Heure d'aplatissement (HH:MM) <input name="r.flatten_time" placeholder="15:55" pattern="^([01]\d|2[0-3]):[0-5]\d$|^$"></label>
+      </div>
+      <p class="hint">Les presets sont indicatifs: verifiez toujours les regles actuelles de votre prop firm.</p>
+    </fieldset>
+    <p class="error" id="formError"></p>
+    <div class="row-end">
+      <button type="button" class="btn ghost" id="dlgCancel">Annuler</button>
+      <button type="submit" class="btn primary">Enregistrer</button>
+    </div>
+  </form>
+</dialog>
+<div id="tooltip" class="tooltip" role="status"></div>
+<div id="toast" class="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
