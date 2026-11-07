@@ -13,6 +13,7 @@ A secret can be written as "env:NAME" to read it from an environment variable.
     projectx    TopstepX and the prop firms on ProjectX (API key)
     tradovate   Tradovate and the prop firms on Tradovate (API access required)
     mt5         MetaTrader 5: FTMO, FundedNext, The5ers, E8 and every MT5 broker or prop firm (Windows)
+    metaapi     MetaTrader 4 / 5 through MetaApi's cloud: no Windows, no computer left on
     oanda       OANDA v20 (practice and live)
     bybit       Bybit (USDT perpetuals, spot...): crypto prop firms on Bybit
     binance     Binance USD-M futures
@@ -429,6 +430,63 @@ def mt5_trades(deals, account, shift_hours=0):
     return out
 
 
+# ---------------------------------------------------------------- MetaApi (MT4 / MT5 in the cloud, no Windows)
+
+METAAPI_PROVISIONING = "https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai"
+DEAL_TYPES = {"DEAL_TYPE_BUY": 0, "DEAL_TYPE_SELL": 1}
+DEAL_ENTRIES = {"DEAL_ENTRY_IN": 0, "DEAL_ENTRY_OUT": 1, "DEAL_ENTRY_INOUT": 2, "DEAL_ENTRY_OUT_BY": 3}
+
+
+def metaapi(cfg, since, tz):
+    """Every MT4 / MT5 account you added on app.metaapi.cloud (investor password = read only).
+    Each account appears under the name you gave it there (e.g. "FTMO 100K")."""
+    h = {"auth-token": secret(cfg, "token"), "Accept": "application/json"}
+    prov = (cfg.get("provisioning_url") or METAAPI_PROVISIONING).rstrip("/")
+    accounts = get_json(prov + "/users/current/accounts", h)
+    if isinstance(accounts, dict):
+        accounts = accounts.get("items", [])
+    wanted = set(cfg.get("accounts") or [])
+    end = datetime.now(timezone.utc) + timedelta(days=1)
+    out, skipped = [], []
+    for acc in accounts:
+        name = acc.get("name") or str(acc.get("login"))
+        if wanted and name not in wanted and str(acc.get("login")) not in wanted:
+            continue
+        if acc.get("state") != "DEPLOYED":
+            skipped.append(name)
+            continue
+        client = cfg.get("client_url") or "https://mt-client-api-v1.%s.agiliumtrade.ai" % (acc.get("region") or "new-york")
+        deals, offset = [], 0
+        for _ in range(100):
+            page = get_json("%s/users/current/accounts/%s/history-deals/time/%s/%s?offset=%d&limit=1000" % (
+                client.rstrip("/"), acc.get("_id") or acc.get("id"), iso_z(since), iso_z(end), offset), h)
+            deals += page
+            if len(page) < 1000:
+                break
+            offset += 1000
+        out += mt5_trades(metaapi_deals(deals, tz), name, 0)
+    if skipped and not out:
+        raise ConnectorError("account(s) not deployed on MetaApi: %s (deploy them in app.metaapi.cloud)"
+                             % ", ".join(skipped))
+    return [], out, {}
+
+
+def metaapi_deals(deals, tz):
+    """MetaApi deals to the MetaTrader5 package's shape, times moved to the journal's time zone."""
+    out = []
+    for d in deals:
+        if d.get("type") not in DEAL_TYPES:
+            continue
+        local = datetime.strptime(to_local(parse_utc(d["time"]), tz), "%Y-%m-%d %H:%M:%S")
+        sec = int((local - datetime(1970, 1, 1)).total_seconds())
+        out.append({"type": DEAL_TYPES[d["type"]], "entry": DEAL_ENTRIES.get(d.get("entryType"), -1),
+                    "position_id": d.get("positionId") or d.get("id"), "symbol": d.get("symbol", ""),
+                    "volume": float(d.get("volume") or 0), "price": float(d.get("price") or 0),
+                    "time": sec, "time_msc": sec * 1000, "profit": float(d.get("profit") or 0),
+                    "commission": float(d.get("commission") or 0), "swap": float(d.get("swap") or 0), "fee": 0.0})
+    return out
+
+
 # ---------------------------------------------------------------- OANDA
 
 def oanda(cfg, since, tz):
@@ -540,7 +598,7 @@ def folder(cfg, since, tz):
     return execs, trades, {}
 
 
-TYPES = {"alpaca": alpaca, "ibkr": ibkr, "projectx": projectx, "tradovate": tradovate, "mt5": mt5,
+TYPES = {"metaapi": metaapi, "alpaca": alpaca, "ibkr": ibkr, "projectx": projectx, "tradovate": tradovate, "mt5": mt5,
          "oanda": oanda, "bybit": bybit, "binance": binance, "folder": folder}
 
 

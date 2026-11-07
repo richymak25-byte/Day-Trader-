@@ -166,6 +166,21 @@ svg text{fill:var(--muted);font-size:11px;font-family:inherit}
 .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:6px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .menu-btn{display:none}
+#filterBtn{display:none}
+.tabbar{display:none}
+@media (max-width:980px){
+  .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:15;background:var(--panel);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;border:0;background:none;color:var(--muted);font-size:10.5px;font-weight:600;padding:4px 0;cursor:pointer}
+  .tabbar button svg{width:22px;height:22px}
+  .tabbar button.on{color:var(--accent2)}
+  #view{padding-bottom:96px}
+  .toast{bottom:84px}
+  #filterBtn{display:inline-flex}
+  .filters{display:none;width:100%}
+  .filters.open{display:flex}
+  .filters select{flex:1 1 140px}
+  .top h1{font-size:18px}
+}
 @media (max-width:1500px){.kpi .val{font-size:21px}}
 @media (max-width:1280px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:980px){
@@ -180,6 +195,7 @@ svg text{fill:var(--muted);font-size:11px;font-family:inherit}
   #view{padding:16px}
   .top{padding:12px 16px}
   .form{grid-template-columns:1fr}
+  #importBtn{display:none}
   .cal{gap:3px}.cal .day{min-height:52px;padding:4px}.cal .day .n{display:none}
 }
 </style>
@@ -214,12 +230,15 @@ svg text{fill:var(--muted);font-size:11px;font-family:inherit}
         <select id="fAccount" title="Compte"></select>
         <select id="fSide" title="Sens"><option value="">Long + Short</option><option value="long">Long</option><option value="short">Short</option></select>
       </div>
+      <button class="btn" id="filterBtn" aria-label="Filtres">Filtres</button>
+      <button class="btn" id="syncBtn" hidden title="Relire tes comptes maintenant">⟳ Sync</button>
       <button class="btn" id="importBtn">Importer</button>
       <button class="btn primary" id="addBtn">+ Trade</button>
     </div>
     <section id="view"></section>
   </main>
 </div>
+<nav class="tabbar" id="tabbar"></nav>
 <div class="veil" id="veil"></div>
 <aside class="drawer" id="drawer"></aside>
 <div class="modal" id="modal"></div>
@@ -247,7 +266,46 @@ let S;
 try{S=JSON.parse(localStorage.getItem(KEY))||freshStore();}catch(e){S=freshStore();}
 S.settings=Object.assign(freshStore().settings,S.settings||{});
 S.days=S.days||{};S.playbook=S.playbook||[];S.trades=S.trades||[];
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast("Sauvegarde impossible (stockage plein ou bloqué)");}scheduleBackup();}
+function localSave(){try{localStorage.setItem(KEY,JSON.stringify(S));return true;}catch(e){return false;}}
+function save(){if(!localSave()&&!SERVER)toast("Sauvegarde impossible (stockage plein ou bloqué)");scheduleBackup();cloudPush();}
+
+/* ================================================================ online mode (sync.py --serve)
+   one shared journal on the server: what you write on the phone shows on the computer */
+const SERVER=/^https?:$/.test(location.protocol);
+const CLOUD={version:+(S.settings.serverVersion||0),pending:false,ready:false,timer:null,last:null,state:"wait"};
+// nothing goes up before this device has read the server once: an old copy must never overwrite newer notes
+function cloudPush(){if(!SERVER)return;CLOUD.pending=true;if(!CLOUD.ready)return;clearTimeout(CLOUD.timer);CLOUD.timer=setTimeout(cloudSend,800);}
+async function cloudSend(){
+  try{const r=await fetch("api/state",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(S),credentials:"same-origin"});
+    if(r.status===401)return location.reload();if(!r.ok)throw new Error(r.status);
+    const j=await r.json();CLOUD.version=j.version;S.settings.serverVersion=j.version;localSave();CLOUD.pending=false;CLOUD.last=new Date();CLOUD.state="ok";}
+  catch(e){CLOUD.state="error";clearTimeout(CLOUD.timer);CLOUD.timer=setTimeout(cloudSend,15000);}
+  renderBadge();
+}
+async function cloudPull(first){
+  try{const r=await fetch("api/state?since="+(first?0:CLOUD.version),{cache:"no-store",credentials:"same-origin"});
+    if(r.status===401){location.reload();return false;}
+    if(!r.ok&&r.status!==204)throw new Error(r.status);
+    if(CLOUD.state!=="error"||!CLOUD.pending){CLOUD.state="ok";CLOUD.last=CLOUD.last||new Date();}
+    if(r.status===204)return false;
+    const j=await r.json();
+    if(!j.state){if(first&&(S.trades.length||Object.keys(S.days).length))cloudSend();return false;} // first device: its journal goes up
+    if(first)CLOUD.pending=false; // the server copy is the reference when a device opens
+    else if(CLOUD.pending)return false; // this device's edits are on their way and win
+    const st=j.state;delete st._version;S=Object.assign(freshStore(),st);S.settings=Object.assign(freshStore().settings,st.settings||{});
+    CLOUD.version=j.version;S.settings.serverVersion=j.version;localSave();CLOUD.last=new Date();return true;
+  }catch(e){CLOUD.state="error";return false;}
+}
+async function syncNow(){
+  if(!SERVER)return;try{await fetch("api/sync",{method:"POST",credentials:"same-origin"});toast("Synchronisation des comptes lancée");setTimeout(livePoll,6000);setTimeout(livePoll,15000);}catch(e){toast("Serveur injoignable");}
+}
+async function livePoll(){
+  const changed=await cloudPull(false);let res=null;
+  try{const r=await fetch("data.json",{cache:"no-store",credentials:"same-origin"});if(r.status===401)return location.reload();if(r.ok)res=applySync(await r.json());}catch(e){}
+  if(changed||res){if(!document.querySelector(".drawer.on,.modal.on"))render();else renderFilters();
+    if(res&&res.added)toast(res.added+(res.added>1?" nouveaux trades synchronisés":" nouveau trade synchronisé"));}
+  renderBadge();
+}
 
 /* ================================================================ automatic backup
    1. a file on disk, rewritten after every change (File System Access API: Chrome, Edge, Opera)
@@ -309,6 +367,9 @@ async function snapshotList(){
 }
 function renderBadge(){
   const el=document.getElementById("abBadge");if(!el)return;
+  if(SERVER){const t=CLOUD.last?CLOUD.last.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}):"";
+    el.innerHTML=CLOUD.state==="error"?`<span class="neg">●</span> Hors ligne, nouvel essai…`:CLOUD.state==="wait"?`<span class="mut">●</span> Connexion…`:`<span class="pos">●</span> Synchronisé${t?" · "+t:""}`;
+    el.onclick=syncNow;el.title="Synchroniser les comptes maintenant";return;}
   const t=AB.last?AB.last.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}):"";
   const m={ok:["pos","●","Sauvegarde auto"+(t?" · "+t:"")],download:["pos","●","Copie du jour téléchargée"],paused:["warn","●","Sauvegarde en pause : clique pour reprendre"],
     error:["neg","●","Erreur de sauvegarde : clique ici"],off:["neg","○","Sauvegarde auto désactivée"]}[AB.state];
@@ -518,10 +579,12 @@ function applySync(EMBED){
   if(freshBrowser&&EMBED.settings)S.settings=Object.assign(S.settings,EMBED.settings);
   S.settings.lastSync=EMBED.generated;save();return r;}
 applySync(EMBED);
-/* live mode: `sync.py --serve` serves this page; new trades appear without reloading */
-if(/^https?:$/.test(location.protocol)){
-  setInterval(async()=>{try{const r=await fetch("data.json",{cache:"no-store"});if(!r.ok)return;const res=applySync(await r.json());
-    if(res){if(!document.querySelector(".drawer.on,.modal.on"))render();else renderFilters();if(res.added)toast(res.added+(res.added>1?" nouveaux trades synchronisés":" nouveau trade synchronisé"));}}catch(e){}},20000);
+/* live mode: new trades and edits from your other devices appear without reloading */
+if(SERVER){
+  setInterval(livePoll,20000);
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")livePoll();});
+  [["manifest","manifest.webmanifest"],["apple-touch-icon","icon-192.png"]].forEach(([rel,href])=>{const l=document.createElement("link");l.rel=rel;l.href=href;document.head.appendChild(l);});
+  [["apple-mobile-web-app-capable","yes"],["apple-mobile-web-app-title","MINDLOCK"],["apple-mobile-web-app-status-bar-style","black-translucent"]].forEach(([n,c])=>{const m=document.createElement("meta");m.name=n;m.content=c;document.head.appendChild(m);});
 }
 
 /* ================================================================ metrics */
@@ -545,7 +608,7 @@ function holdMin(t){const a=ts(t.openTime),b=ts(t.closeTime);return isNaN(a)||is
 function compute(trades){
   const c=closedOf(trades),n=c.length,pn=c.map(t=>t.pnl);
   const wins=pn.filter(x=>x>0),losses=pn.filter(x=>x<0),be=pn.filter(x=>x===0).length;
-  const gp=sum(wins),gl=-sum(losses),net=sum(pn);
+  const gp=sum(wins),gl=-sum(losses)||0,net=sum(pn);
   const days={};c.forEach(t=>{const d=dayOf(t.closeTime);(days[d]=days[d]||{pnl:0,n:0,w:0,trades:[]});days[d].pnl+=t.pnl;days[d].n++;if(t.pnl>0)days[d].w++;days[d].trades.push(t);});
   const dk=Object.keys(days).sort(),dv=dk.map(k=>days[k].pnl);
   let cum=0,peak=0,dd=0;const curve=c.map(t=>{cum+=t.pnl;peak=Math.max(peak,cum);dd=Math.max(dd,peak-cum);return {t,cum};});
@@ -648,7 +711,12 @@ const ICONS={
   settings:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>'
 };
 const VIEWS=[["dashboard","Dashboard"],["journal","Journal quotidien"],["trades","Trades"],["calendar","Calendrier"],["reports","Rapports"],["playbook","Playbook"],["settings","Import & Réglages"]];
-function renderNav(){
+const TABS=[["dashboard","Accueil"],["journal","Journal"],["trades","Trades"],["calendar","Calendrier"]];
+function renderTabbar(){
+  $("#tabbar").innerHTML=TABS.map(([k,l])=>`<button class="${UI.view===k?"on":""}" data-view="${k}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[k]}</svg><span>${l}</span></button>`).join("")
+    +`<button data-more="1" class="${["reports","playbook","settings"].includes(UI.view)?"on":""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg><span>Plus</span></button>`;
+}
+function renderNav(){renderTabbar();
   $("#nav").innerHTML=VIEWS.map(([k,l])=>`<button class="${UI.view===k?"on":""}" data-view="${k}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[k]}</svg>${l}</button>`).join("");
 }
 function renderFilters(){
@@ -868,6 +936,9 @@ python3 mindlock-journal/sync.py --watch 60   # en continu</pre>
     <label class="full">Multiplicateurs (futures, un par ligne : SYMBOLE=valeur du point)<textarea id="stMult" rows="3" placeholder="NQ=20&#10;MNQ=2">${esc(Object.entries(s.multipliers||{}).map(([a,b])=>a+"="+b).join("\n"))}</textarea></label>
     <label class="full">Liste des erreurs (une par ligne)<textarea id="stMis" rows="5">${esc((s.mistakes||[]).join("\n"))}</textarea></label>
   </div><div style="margin-top:14px;text-align:right"><button class="btn primary" onclick="saveSettings()">Enregistrer</button></div>
+    ${SERVER?`<div class="section">Compte en ligne</div><p style="margin:0 0 8px">Ton journal est enregistré sur ton serveur MINDLOCK et partagé entre ton téléphone et ton ordinateur. ${CLOUD.last?`Dernière synchro : <b>${CLOUD.last.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</b>.`:""}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" onclick="syncNow()">Synchroniser mes comptes</button><a class="btn" href="logout" style="text-decoration:none;color:inherit">Se déconnecter</a></div>
+      <p class="mut" style="font-size:12px">Sur téléphone : menu du navigateur > <b>Ajouter à l'écran d'accueil</b> pour l'ouvrir comme une appli.</p>`:""}
     <div class="section">Sauvegarde automatique</div>
     ${AB.supported?(AB.handle?`<p style="margin:0 0 8px">Fichier : <b>${esc(AB.handle.name)}</b> · ${AB.state==="ok"?'<span class="pos">actif, réécrit à chaque modification</span>':'<span style="color:var(--amber)">en pause (le navigateur redemande l\'accès après redémarrage)</span>'}</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">${AB.state==="ok"?"":'<button class="btn primary" onclick="resumeBackup()">Reprendre</button>'}<button class="btn" onclick="pickBackupFile()">Changer de fichier</button><button class="btn" onclick="stopBackup()">Désactiver</button></div>`
@@ -1016,6 +1087,9 @@ $("#fSetup").onchange=e=>{UI.setup=e.target.value;UI.page=0;render();};
 $("#fAccount").onchange=e=>{UI.account=e.target.value;UI.page=0;render();};
 $("#fSide").onchange=e=>{UI.side=e.target.value;UI.page=0;render();};
 $("#addBtn").onclick=()=>openTradeForm();
+$("#syncBtn").hidden=!SERVER;$("#syncBtn").onclick=syncNow;
+$("#filterBtn").onclick=()=>$("#filters").classList.toggle("open");
+$("#tabbar").addEventListener("click",e=>{const b=e.target.closest("button[data-view]");if(b)go(b.dataset.view);else if(e.target.closest("[data-more]")){$("#side").classList.add("on");$("#veil").classList.add("on");}});
 $("#importBtn").onclick=()=>$("#fileInput").click();
 $("#fileInput").onchange=e=>{importFiles(e.target.files);e.target.value="";};
 $("#veil").onclick=closeAll;
@@ -1030,7 +1104,9 @@ document.addEventListener("mousemove",e=>{const el=e.target.closest&&e.target.cl
   tip.textContent=el.getAttribute("data-tip");tip.style.display="block";const w=tip.offsetWidth,h=tip.offsetHeight;
   tip.style.left=Math.min(window.innerWidth-w-8,e.clientX+14)+"px";tip.style.top=Math.max(8,e.clientY-h-12)+"px";});
 render();
-initBackup();
+if(SERVER){cloudPull(true).then(ch=>{CLOUD.ready=true;
+  const res=applySync(EMBED);if(CLOUD.pending)cloudPush();if(ch||res)render();renderBadge();});}
+else initBackup();
 </script>
 </body>
 </html>

@@ -1,0 +1,13 @@
+{
+  "_comment": "MINDLOCK online (no computer needed). Paste this whole JSON, filled in, into the MINDLOCK_CONNECTORS setting of your host. The secrets stay as env: names; put their values in the host's secret settings.",
+  "timezone": "Europe/Paris",
+  "history_days": 120,
+  "connectors": [
+    {"name": "MT5 prop firms (FTMO, FundedNext, FundingPips, Foxx Funded)", "type": "metaapi",
+     "token": "env:METAAPI_TOKEN"},
+    {"name": "Topstep", "type": "projectx", "base_url": "https://api.topstepx.com",
+     "username": "env:TOPSTEPX_USERNAME", "api_key": "env:TOPSTEPX_API_KEY"},
+    {"name": "Lucid", "type": "tradovate", "username": "env:LUCID_TRADOVATE_USERNAME",
+     "password": "env:LUCID_TRADOVATE_PASSWORD", "cid": "env:TRADOVATE_CID", "sec": "env:TRADOVATE_SEC"}
+  ]
+}

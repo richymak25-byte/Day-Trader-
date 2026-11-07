@@ -4,6 +4,65 @@ Ton journal de trading personnel, avec un dashboard complet, qui se remplit
 automatiquement. Un seul fichier HTML, aucune inscription, aucune dépendance,
 tes données restent sur ton appareil.
 
+## En ligne, comme TradeZella (téléphone + ordinateur, sans PC allumé)
+
+MINDLOCK tourne sur un petit serveur en ligne. Tu l'ouvres avec un lien et un
+mot de passe, depuis ton téléphone ou n'importe quel ordinateur. Tes notes,
+ton journal et ton playbook sont les mêmes partout, et tes comptes se
+synchronisent 24 h/24.
+
+- **Prop firms MT5** (FTMO, FundedNext, FundingPips, Foxx Funded) : via
+  [MetaApi](https://metaapi.cloud), qui lit tes comptes MT5 dans le cloud avec
+  le mot de passe **investisseur** (lecture seule).
+- **Topstep** : TopstepX (clé API). **Lucid** : Tradovate (accès API).
+
+### 1. MetaApi (une fois)
+
+1. Crée un compte sur [app.metaapi.cloud](https://app.metaapi.cloud).
+2. Ajoute chaque compte MT5 : numéro, mot de passe **investisseur**, serveur
+   (ex. celui de l'e-mail FTMO). Donne-lui un nom clair (ex. `FTMO 100K`) : c'est
+   le nom affiché dans le journal. Déploie-le (*Deploy*).
+3. Copie ton jeton API (page *API access / token*).
+
+Vérifie les tarifs MetaApi avant : le service est payant au-delà de son offre
+d'essai et facture par compte connecté.
+
+### 2. Mettre MINDLOCK en ligne (exemple : Render)
+
+1. Crée un compte sur [render.com](https://render.com) et connecte ton GitHub.
+2. **New > Web Service**, choisis ce repo et la branche qui contient MINDLOCK.
+   - **Root Directory** : `mindlock-journal`
+   - **Runtime** : Docker
+   - **Instance** : une offre payante d'entrée de gamme (l'offre gratuite se met
+     en veille et n'a pas de disque : tes données seraient perdues).
+3. **Disks** : ajoute un disque monté sur `/data` (1 Go suffit).
+4. **Environment** : ajoute ces variables (secrètes) :
+
+| Variable | Valeur |
+| --- | --- |
+| `MINDLOCK_PASSWORD` | ton mot de passe MINDLOCK (8 caractères minimum) |
+| `MINDLOCK_CONNECTORS` | le contenu de `connectors.cloud.example.json` |
+| `METAAPI_TOKEN` | ton jeton MetaApi |
+| `TOPSTEPX_USERNAME`, `TOPSTEPX_API_KEY` | TopstepX, Réglages > API |
+| `LUCID_TRADOVATE_USERNAME`, `LUCID_TRADOVATE_PASSWORD`, `TRADOVATE_CID`, `TRADOVATE_SEC` | Tradovate (Lucid) |
+
+5. **Deploy**. Render te donne une adresse `https://...onrender.com`.
+6. Sur ton téléphone : ouvre l'adresse, connecte-toi, puis menu du navigateur >
+   **Ajouter à l'écran d'accueil**. MINDLOCK s'ouvre comme une appli.
+
+Le bouton **⟳ Sync** relit tes comptes tout de suite ; sinon c'est automatique
+toutes les 2 minutes (`MINDLOCK_SYNC_SECONDS`). Le même `Dockerfile` marche sur
+Railway, Fly.io ou n'importe quel serveur avec Docker.
+
+Sécurité : sans `MINDLOCK_PASSWORD`, le serveur refuse de démarrer en ligne.
+Après 5 mauvais mots de passe, les essais sont ralentis. Changer le mot de passe
+déconnecte tous les appareils.
+
+### Sur ton réseau, sans hébergeur
+
+Sur un PC qui reste allumé : `MINDLOCK_PASSWORD=... python3 mindlock-journal/sync.py --serve --host 0.0.0.0`,
+puis sur le téléphone (même Wi-Fi) : `http://<adresse-du-PC>:8765`.
+
 ## Installation sur Windows (FTMO, FundedNext, FundingPips, Foxx Funded, Topstep, Lucid)
 
 1. Installe **Python 3** depuis [python.org](https://www.python.org/downloads/windows/)

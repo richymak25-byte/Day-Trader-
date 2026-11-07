@@ -452,6 +452,14 @@ def stats(trades):
             "profit_factor": round(pf, 2) if pf != float("inf") else None}
 
 
+def write_atomic(path, text):
+    """Readers (the dashboard server) never see a half-written file."""
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    os.replace(tmp, path)
+
+
 def build(args):
     overrides = {}
     jdir = os.path.join(args.dir, "journal")
@@ -515,46 +523,18 @@ def build(args):
         data["days"] = backup.get("days", {})
         data["playbook"] = backup.get("playbook", [])
         data["settings"] = dict((k, v) for k, v in backup.get("settings", {}).items() if k in KEEP_SETTINGS)
-    with open(trades_path, "w", encoding="utf-8") as fh:
-        json.dump(data, fh, indent=1, ensure_ascii=False)
+    write_atomic(trades_path, json.dumps(data, indent=1, ensure_ascii=False))
     with open(TEMPLATE, encoding="utf-8") as fh:
         html = fh.read()
     payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     out_html = os.path.join(jdir, "MINDLOCK-Journal.html")
-    with open(out_html, "w", encoding="utf-8") as fh:
-        fh.write(html.replace(PLACEHOLDER, payload, 1))
+    write_atomic(out_html, html.replace(PLACEHOLDER, payload, 1))
     s = stats(trades)
     print("MINDLOCK Journal: %d closed trades, %d open, net %.2f, win rate %.1f%%, profit factor %s"
           % (s["trades"], s["open"], s["net"], s["win_rate"],
              "n/a" if s["profit_factor"] is None else s["profit_factor"]))
     print("Dashboard: %s" % out_html)
     return out_html
-
-
-def serve(jdir, port):
-    """The dashboard on http://127.0.0.1:PORT; the page polls data.json and shows new trades live."""
-    import threading
-    try:
-        from http.server import ThreadingHTTPServer as Server, SimpleHTTPRequestHandler
-    except ImportError:  # pragma: no cover
-        from http.server import HTTPServer as Server, SimpleHTTPRequestHandler
-
-    class Handler(SimpleHTTPRequestHandler):
-        def translate_path(self, path):
-            name = {"/": "MINDLOCK-Journal.html", "/data.json": "trades.json"}.get(path.split("?")[0])
-            return os.path.join(jdir, name) if name else os.path.join(jdir, "__none__")
-
-        def end_headers(self):
-            self.send_header("Cache-Control", "no-store")
-            SimpleHTTPRequestHandler.end_headers(self)
-
-        def log_message(self, *a):
-            pass
-
-    httpd = Server(("127.0.0.1", port), Handler)
-    threading.Thread(target=httpd.serve_forever, daemon=True).start()
-    print("Dashboard live: http://127.0.0.1:%d  (Ctrl+C to stop)" % port)
-    return httpd
 
 
 def main(argv=None):
@@ -565,8 +545,10 @@ def main(argv=None):
     p.add_argument("--watch", type=int, default=0, help="re-sync every N seconds")
     p.add_argument("--open", action="store_true", help="open the dashboard in the browser")
     p.add_argument("--list-mt5", action="store_true", help="list the MT5 terminals on this computer and exit")
-    p.add_argument("--serve", nargs="?", const=8765, type=int, metavar="PORT",
-                   help="serve the dashboard on http://127.0.0.1:PORT with live updates (default 8765)")
+    p.add_argument("--serve", nargs="?", const=int(os.environ.get("PORT", 8765)), type=int, metavar="PORT",
+                   help="serve the dashboard with live updates (default 8765, or $PORT)")
+    p.add_argument("--host", default=os.environ.get("MINDLOCK_HOST", "127.0.0.1"),
+                   help="0.0.0.0 to reach it from your phone or online (needs MINDLOCK_PASSWORD)")
     a = p.parse_args(argv)
     if a.list_mt5:
         import connectors
@@ -574,11 +556,16 @@ def main(argv=None):
         return
     if not os.path.isfile(TEMPLATE):
         sys.exit("missing template: %s" % TEMPLATE)
-    if a.serve:
+    jdir = os.path.join(a.dir, "journal")
+    os.makedirs(jdir, exist_ok=True)
+    if os.environ.get("MINDLOCK_CONNECTORS"):  # online: the host's settings hold the connector list
+        json.loads(os.environ["MINDLOCK_CONNECTORS"])
+        write_atomic(os.path.join(jdir, "connectors.json"), os.environ["MINDLOCK_CONNECTORS"])
+    if a.serve and a.host in ("127.0.0.1", "localhost"):
         try:
             import socket
             probe = socket.socket()
-            probe.bind(("127.0.0.1", a.serve))
+            probe.bind((a.host, a.serve))
             probe.close()
         except OSError:  # MINDLOCK already runs (started with Windows, or a second double-click)
             print("MINDLOCK Journal already runs on http://127.0.0.1:%d" % a.serve)
@@ -586,25 +573,27 @@ def main(argv=None):
                 import webbrowser
                 webbrowser.open("http://127.0.0.1:%d/" % a.serve)
             return
+    import threading
+    wake = threading.Event()
     out_html = build(a)
     if a.serve:
-        serve(os.path.join(a.dir, "journal"), a.serve)
+        import server
+        server.start(jdir, a.host, a.serve, sync_now=wake.set)
+        if a.watch <= 0:
+            a.watch = 60
     if a.open:
         import webbrowser
         webbrowser.open("http://127.0.0.1:%d/" % a.serve if a.serve else "file://" + os.path.abspath(out_html))
-    if a.serve:
-        if a.watch <= 0:
-            a.watch = 60
     try:
         while a.watch > 0:
-            time.sleep(a.watch)
+            wake.wait(a.watch)
+            wake.clear()
             try:
                 build(a)
             except Exception as err:  # keep watching through a bad file or a network hiccup
                 print("sync error: %s" % err)
     except KeyboardInterrupt:
         pass
-
 
 if __name__ == "__main__":
     main()
