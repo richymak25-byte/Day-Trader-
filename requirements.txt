@@ -1,0 +1,5 @@
+# Le mode simulateur, Tradovate et ProjectX n'ont besoin d'AUCUN paquet: Python 3.9+ suffit.
+# Edition CFD avec MetaTrader 5 (Windows uniquement):
+MetaTrader5; platform_system == "Windows"
+# Fuseaux horaires sous Windows (sinon l'heure locale de la machine est utilisee):
+tzdata; platform_system == "Windows"
