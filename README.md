@@ -21,26 +21,6 @@ an order on its own. Paper trading is the default.
 > [github.com/Jakeschincariol/trader-skill](https://github.com/Jakeschincariol/trader-skill).
 > This repo is its day-trading sequel: the Trader skill v2.
 
-
-## Mikdlock Risk Management : l'application de gestion du risque
-
-`risk-app/index.html` est une application autonome (un seul fichier, aucune
-installation : ouvrez-le dans un navigateur). Elle sert à accepter la perte
-avant d'entrer, et à ne plus couper les gains trop tôt :
-
-- **Position** : risque en % et en $, taille de position, R:R net, win rate
-  minimum, espérance, échelle du trade en R, et la phrase « je perds X $ si le
-  stop est touché ».
-- **Simulation** : Monte Carlo (500 à 5 000 parcours) selon le risque, le RR,
-  le win rate et son incertitude : capital médian, pire 5 %, drawdown max,
-  chance de « mourir » (seuil réglable), plus longue série de pertes.
-- **Séries de pertes** : probabilité exacte de N pertes d'affilée, et ce qu'il
-  reste du capital selon le risque par trade.
-- **Coût des émotions** : le plan contre la réalité quand on coupe les gagnants
-  tôt ou qu'on recule le stop.
-
-Outil d'éducation, pas un conseil financier.
-
 ## Install
 
 Paste this into Claude:
