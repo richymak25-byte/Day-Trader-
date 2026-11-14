@@ -1,5 +1,5 @@
 // Rester Vivant service worker: app shell offline, fonts cached on first use.
-const VERSION = "rv-2";
+const VERSION = "rv-3";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png", "apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {

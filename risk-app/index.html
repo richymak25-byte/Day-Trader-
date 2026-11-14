@@ -16,49 +16,53 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap">
 <style>
 /* Layout: a pocket risk desk — app bar on top, bottom tab bar on phones that becomes a left rail on wide screens; each screen opens with rings, then the detail. */
 :root {
-  --bg: #0B1118;
-  --surface: #121A24;
-  --raised: #182230;
-  --ink: #E6ECF3;
-  --muted: #8C9AAD;
-  --line: #233042;
-  --track: #223044;
-  --accent: #7FA8FF;
-  --accent-ink: #0B1118;
-  --accent-soft: #1A2840;
-  --gain: #3DD68C;
-  --gain-soft: #12301F;
-  --loss: #FF6B5E;
-  --loss-soft: #36181A;
-  --warn: #F5B544;
-  --warn-soft: #33270F;
-  --f-display: "Sora", "Avenir Next", "Segoe UI", sans-serif;
-  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --f-data: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
-  --nav-h: 64px;
+  --bg: #07090D;
+  --surface: #0E131A;
+  --raised: #141A23;
+  --ink: #EEF2F7;
+  --muted: #8892A3;
+  --line: #1D2530;
+  --track: #1A222D;
+  --accent: #5B8CFF;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #142039;
+  --gain: #2ED38A;
+  --gain-soft: #0F2A1E;
+  --loss: #FF5F5F;
+  --loss-soft: #2F1516;
+  --warn: #F2B53F;
+  --warn-soft: #2D230E;
+  --glow: 0.45;
+  --shadow: 0 1px 0 rgba(255,255,255,.035) inset, 0 12px 32px -18px rgba(0,0,0,.8);
+  --f-display: "Geist", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Geist", "SF Pro Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-data: "Geist Mono", "SF Mono", ui-monospace, Menlo, monospace;
+  --nav-h: 66px;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-    --bg: #EDF1F6; --surface: #FFFFFF; --raised: #F5F7FA; --ink: #131C29; --muted: #5D6B7E; --line: #DCE3EC; --track: #E3E9F1;
-    --accent: #2F5BD3; --accent-ink: #FFFFFF; --accent-soft: #E3EAFB; --gain: #13834F; --gain-soft: #DCF2E6;
-    --loss: #C4372C; --loss-soft: #FBE3E0; --warn: #A2650A; --warn-soft: #F8ECD4; color-scheme: light;
+    --bg: #F2F4F7; --surface: #FFFFFF; --raised: #F6F8FB; --ink: #0D131D; --muted: #5A6475; --line: #E2E7EE; --track: #E9EDF3;
+    --accent: #2457E6; --accent-ink: #FFFFFF; --accent-soft: #E7EDFD; --gain: #0E8A55; --gain-soft: #E0F4EA;
+    --loss: #D23A35; --loss-soft: #FCE6E5; --warn: #A6680B; --warn-soft: #FAEFD9; --glow: 0;
+    --shadow: 0 1px 2px rgba(16,24,40,.04), 0 10px 28px -16px rgba(16,24,40,.18); color-scheme: light;
   }
 }
 :root[data-theme="light"] {
-  --bg: #EDF1F6; --surface: #FFFFFF; --raised: #F5F7FA; --ink: #131C29; --muted: #5D6B7E; --line: #DCE3EC; --track: #E3E9F1;
-  --accent: #2F5BD3; --accent-ink: #FFFFFF; --accent-soft: #E3EAFB; --gain: #13834F; --gain-soft: #DCF2E6;
-  --loss: #C4372C; --loss-soft: #FBE3E0; --warn: #A2650A; --warn-soft: #F8ECD4; color-scheme: light;
+  --bg: #F2F4F7; --surface: #FFFFFF; --raised: #F6F8FB; --ink: #0D131D; --muted: #5A6475; --line: #E2E7EE; --track: #E9EDF3;
+  --accent: #2457E6; --accent-ink: #FFFFFF; --accent-soft: #E7EDFD; --gain: #0E8A55; --gain-soft: #E0F4EA;
+  --loss: #D23A35; --loss-soft: #FCE6E5; --warn: #A6680B; --warn-soft: #FAEFD9; --glow: 0;
+  --shadow: 0 1px 2px rgba(16,24,40,.04), 0 10px 28px -16px rgba(16,24,40,.18); color-scheme: light;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; }
 body {
-  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45;
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45; font-feature-settings: "ss01", "cv11"; letter-spacing: -0.005em;
   -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
 }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
@@ -68,7 +72,9 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .appbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 .appbar .gutter { display: flex; align-items: center; gap: 12px; padding-block: 12px; max-width: 1180px; margin: 0 auto; }
 .logo { width: 30px; height: 30px; flex: none; }
-.appbar h1 { font-family: var(--f-display); font-weight: 700; font-size: 19px; letter-spacing: -0.02em; margin: 0; flex: 1; min-width: 0; }
+.appbar h1 { font-family: var(--f-display); font-weight: 700; font-size: 18px; letter-spacing: -0.035em; margin: 0; line-height: 1.1; }
+.brandtxt { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.brandtxt span { font: 500 11.5px var(--f-data); color: var(--muted); letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 99px; background: var(--gain-soft); color: var(--gain); white-space: nowrap; }
 .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .status.mid { background: var(--warn-soft); color: var(--warn); }
@@ -80,8 +86,10 @@ nav.tabbar {
   display: grid; grid-template-columns: repeat(5, 1fr);
 }
 nav.tabbar a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; height: var(--nav-h); color: var(--muted); text-decoration: none; font-size: 11px; font-weight: 600; }
-nav.tabbar svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+nav.tabbar svg { box-sizing: content-box; padding: 4px 16px; border-radius: 99px; transition: background .2s; width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 nav.tabbar a[aria-current="page"] { color: var(--accent); }
+nav.tabbar a[aria-current="page"] svg { background: var(--accent-soft); }
+nav.tabbar { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); background: color-mix(in srgb, var(--surface) 92%, transparent); }
 main { padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 24px); }
 main > .gutter { max-width: 1180px; margin: 0 auto; padding-block: 8px 0; }
 @media (min-width: 960px) {
@@ -95,35 +103,58 @@ main > .gutter { max-width: 1180px; margin: 0 auto; padding-block: 8px 0; }
 .screen { display: flex; flex-direction: column; gap: 16px; }
 .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 860px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-.card h2 { font-family: var(--f-display); font-size: 16px; font-weight: 600; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.card h2 { font-family: var(--f-display); font-size: 15px; font-weight: 600; margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
+.card.lead { background: radial-gradient(120% 120% at 0% 0%, var(--accent-soft) 0%, transparent 55%), var(--surface); }
+.ctx { display: flex; flex-wrap: wrap; gap: 6px; }
+.ctx span { font: 500 11.5px var(--f-data); padding: 4px 8px; border-radius: 7px; background: var(--raised); border: 1px solid var(--line); color: var(--muted); }
+.ctx span.dirL { color: var(--gain); background: var(--gain-soft); border-color: transparent; }
+.ctx span.dirS { color: var(--loss); background: var(--loss-soft); border-color: transparent; }
+.ctx span.st { color: var(--accent); background: var(--accent-soft); border-color: transparent; font-family: var(--f-body); font-weight: 600; }
+.tfs { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; background: var(--raised); border: 1px solid var(--line); border-radius: 12px; padding: 3px; }
+.tfs button { padding: 8px 0; border: 0; border-radius: 9px; background: transparent; font: 600 12.5px var(--f-data); color: var(--muted); }
+.tfs button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.strats { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.strats::-webkit-scrollbar { display: none; }
+.strats button { flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; border-radius: 12px; min-width: 132px; text-align: left; }
+.strats button b { font-weight: 600; font-size: 13.5px; letter-spacing: -0.01em; }
+.strats button small { font: 500 11px var(--f-data); color: var(--muted); }
+.strats button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.strats button[aria-pressed="true"] b { color: var(--accent); }
+.strow { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(0, .9fr) minmax(0, .9fr) minmax(0, .9fr) 34px; gap: 8px; align-items: center; }
+.sthead { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(0, .9fr) minmax(0, .9fr) minmax(0, .9fr) 34px; gap: 8px; font-size: 11px; color: var(--muted); font-weight: 600; }
+@media (max-width: 560px) { .sthead { display: none; } .strow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 34px; padding-bottom: 8px; border-bottom: 1px solid var(--line); } .strow input[data-k="name"] { grid-column: 1 / -1; } }
+.strow input, .strow select { padding: 9px 8px; font-size: 14px; }
+.strow input[data-k="name"] { font-family: var(--f-body); font-weight: 600; }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-.eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.eyebrow { font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .note { font-size: 13px; color: var(--muted); margin: 0; }
 .hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr); gap: 18px; align-items: center; }
 @media (max-width: 720px) { .hero { grid-template-columns: minmax(0, 1fr); } }
 .big { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.big .val { font-family: var(--f-display); font-weight: 700; font-size: clamp(38px, 9vw, 54px); letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.big .val { font-family: var(--f-display); font-weight: 700; font-size: clamp(42px, 10vw, 60px); letter-spacing: -0.05em; line-height: 1; font-variant-numeric: tabular-nums; }
 .big .val small { font-size: 0.42em; font-weight: 600; color: var(--muted); letter-spacing: 0; margin-left: 6px; }
 .big .sub { color: var(--muted); font-size: 13px; }
 .pl { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
-.pl span { font: 600 14px var(--f-data); padding: 6px 10px; border-radius: 10px; font-variant-numeric: tabular-nums; }
+.pl span { font: 600 13.5px var(--f-data); padding: 6px 10px; border-radius: 8px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .pl .l { background: var(--loss-soft); color: var(--loss); } .pl .g { background: var(--gain-soft); color: var(--gain); }
 
 .rings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .ring { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; min-width: 0; }
 .ring .dial { position: relative; width: 100%; max-width: 132px; aspect-ratio: 1; }
 .ring svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
-.ring .trk { fill: none; stroke: var(--track); stroke-width: 9; }
-.ring .arc { fill: none; stroke: var(--accent); stroke-width: 9; stroke-linecap: round; transition: stroke-dasharray .6s cubic-bezier(.2,.8,.2,1), stroke .3s; }
+.ring .trk { fill: none; stroke: var(--track); stroke-width: 7; }
+.ring { --tone: var(--accent); }
+.ring .arc { filter: drop-shadow(0 0 5px color-mix(in srgb, var(--tone) calc(var(--glow) * 100%), transparent)); fill: none; stroke: var(--tone); stroke-width: 7; stroke-linecap: round; transition: stroke-dasharray .6s cubic-bezier(.2,.8,.2,1), stroke .3s; }
 .ring .mk { fill: var(--ink); transition: transform .6s cubic-bezier(.2,.8,.2,1); transform-origin: 50px 50px; }
 .ring .in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18%; }
-.ring .c { font: 600 clamp(15px, 4.2vw, 21px)/1.05 var(--f-data); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.ring .c { font: 600 clamp(15px, 4.2vw, 21px)/1.05 var(--f-data); letter-spacing: -0.04em !important; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .ring .cs { font-size: 10.5px; color: var(--muted); margin-top: 3px; line-height: 1.2; }
 .ring .lb { font-size: 12px; font-weight: 600; }
-.ring[data-tone="good"] .arc { stroke: var(--gain); } .ring[data-tone="good"] .c { color: var(--gain); }
-.ring[data-tone="mid"] .arc { stroke: var(--warn); } .ring[data-tone="mid"] .c { color: var(--warn); }
-.ring[data-tone="bad"] .arc { stroke: var(--loss); } .ring[data-tone="bad"] .c { color: var(--loss); }
+.ring[data-tone="good"] { --tone: var(--gain); } .ring[data-tone="good"] .c { color: var(--gain); }
+.ring[data-tone="mid"] { --tone: var(--warn); } .ring[data-tone="mid"] .c { color: var(--warn); }
+.ring[data-tone="bad"] { --tone: var(--loss); } .ring[data-tone="bad"] .c { color: var(--loss); }
+.ring .lb { color: var(--muted); font-weight: 500; }
 
 .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .field > label, .lbl { font-size: 12.5px; font-weight: 600; color: var(--muted); }
@@ -131,7 +162,7 @@ main > .gutter { max-width: 1180px; margin: 0 auto; padding-block: 8px 0; }
 .row.two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 input, select {
-  font: 500 16px/1.2 var(--f-data); color: var(--ink); background: var(--raised); border: 1px solid var(--line); border-radius: 12px;
+  font: 500 16px/1.2 var(--f-data); letter-spacing: -0.02em; color: var(--ink); background: var(--raised); border: 1px solid var(--line); border-radius: 10px;
   padding: 11px 12px; width: 100%; min-width: 0; font-variant-numeric: tabular-nums; appearance: none; -webkit-appearance: none;
 }
 select { font-family: var(--f-body); font-weight: 600; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 17px) 52%, calc(100% - 12px) 52%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 30px; }
@@ -149,7 +180,10 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
 .slider .top { display: flex; justify-content: space-between; align-items: baseline; }
 .slider .top b { font: 600 15px var(--f-data); }
 
-button { font: 600 14px var(--f-body); border-radius: 12px; border: 1px solid var(--line); background: var(--raised); color: var(--ink); padding: 11px 14px; cursor: pointer; }
+button { font: 600 14px var(--f-body); letter-spacing: -0.01em; border-radius: 10px; transition: border-color .15s, background .15s, transform .1s;
+}
+button:active { transform: scale(.98); }
+button { border: 1px solid var(--line); background: var(--raised); color: var(--ink); padding: 11px 14px; cursor: pointer; }
 button:hover { border-color: var(--accent); }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 button.ghost { background: transparent; }
@@ -169,7 +203,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .chips button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 
 .assetbtn { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 12px 14px; }
-.assetbtn .tk { font: 700 17px var(--f-display); letter-spacing: -0.01em; }
+.assetbtn .tk { font: 700 18px var(--f-display); letter-spacing: -0.03em; }
 .assetbtn .nm { color: var(--muted); font-size: 13px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tag { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 3px 7px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); }
 
@@ -185,7 +219,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .oath { margin: 0; font-size: 15px; line-height: 1.6; }
 .oath b { font-family: var(--f-data); font-weight: 600; color: var(--loss); }
 .oath b.g { color: var(--gain); }
-.alert { border-radius: 14px; padding: 12px 14px; font-size: 14px; display: flex; flex-direction: column; gap: 3px; }
+.alert { border-radius: 12px; border: 1px solid color-mix(in srgb, currentColor 22%, transparent); padding: 12px 14px; font-size: 14px; display: flex; flex-direction: column; gap: 3px; }
 .alert strong { font-family: var(--f-display); font-weight: 600; }
 .alert.bad { background: var(--loss-soft); color: var(--loss); }
 .alert.mid { background: var(--warn-soft); color: var(--warn); }
@@ -195,7 +229,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 .kv > div { background: var(--surface); padding: 11px 13px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .kv .k { font-size: 11.5px; color: var(--muted); }
-.kv .v { font: 600 16px var(--f-data); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.kv .v { font: 600 16px var(--f-data); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .kv .v.g { color: var(--gain); } .kv .v.l { color: var(--loss); } .kv .v.w { color: var(--warn); }
 
 .tablebox { overflow-x: auto; margin: 0 -4px; }
@@ -251,7 +285,7 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
 <header class="appbar">
   <div class="gutter">
     <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="24" fill="none" stroke="var(--track)" stroke-width="7"/><path d="M32 8 A24 24 0 1 1 9.2 39.4" fill="none" stroke="var(--gain)" stroke-width="7" stroke-linecap="round"/><circle cx="9.2" cy="39.4" r="5" fill="var(--loss)"/></svg>
-    <h1>Rester Vivant</h1>
+    <div class="brandtxt"><h1>Rester Vivant</h1><span id="hdr-sub">10 000 $ · jour +0 $</span></div>
     <span class="status" id="hdr-status">Prêt à trader</span>
   </div>
 </header>
@@ -269,10 +303,10 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
 
 <!-- =================== TRADE =================== -->
 <section class="screen" id="view-trade">
-  <div class="card">
+  <div class="card lead">
     <div class="hero">
       <div class="big">
-        <span class="eyebrow" id="t-asset-line">EUR/USD · Achat</span>
+        <div class="ctx" id="t-asset-line"></div>
         <span class="val" id="t-size">0,50<small>lot</small></span>
         <span class="sub" id="t-size-sub">50 000 unités · marge 1 808 $</span>
         <div class="pl"><span class="l" id="t-loss">−100 $</span><span class="g" id="t-gain">+250 $</span></div>
@@ -288,6 +322,12 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
 
   <div class="grid2">
     <div class="screen">
+      <div class="card">
+        <div class="card-head"><h2>Stratégie</h2><a class="note" href="#reglages" style="color:var(--accent);text-decoration:none">Gérer ›</a></div>
+        <div class="strats" id="t-strats"></div>
+        <span class="lbl">Timeframe</span>
+        <div class="tfs" id="t-tf"></div>
+      </div>
       <div class="card">
         <div class="card-head"><h2>Actif</h2><span class="tag" id="t-asset-class">Forex</span></div>
         <div class="chips" id="t-recent"></div>
@@ -378,6 +418,8 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
       <div class="card-head"><h2>Journal du jour</h2><span class="note" id="j-sum"></span></div>
       <div class="log" id="j-log"></div>
       <div class="kv" id="j-stats"></div>
+      <h2>Par stratégie</h2>
+      <div class="tablebox"><table id="j-bystrat"></table></div>
     </div>
   </div>
 </section>
@@ -489,7 +531,7 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
       </div>
       <div class="card">
         <h2>Levier par classe d'actif</h2>
-        <div class="row three" id="g-lev"></div>
+        <div class="row" id="g-lev" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))"></div>
       </div>
       <div class="card">
         <h2>Apparence</h2>
@@ -498,9 +540,15 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
     </div>
     <div class="screen">
       <div class="card">
+        <div class="card-head"><h2>Stratégies</h2><button type="button" class="ghost" id="st-add">+ Stratégie</button></div>
+        <p class="note">Chaque stratégie garde son win rate, son R:R minimum et son timeframe. Le journal calcule ses vraies stats.</p>
+        <div class="sthead"><span>Nom</span><span>Win rate</span><span>R:R min</span><span>TF</span><span></span></div>
+        <div id="st-list" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+      <div class="card">
         <h2>Taux de change (1 unité = x $)</h2>
         <p class="note">Sert à convertir la valeur du pip pour les paires croisées et les actifs cotés hors dollar. Les paires USD/xxx se convertissent avec leur propre prix.</p>
-        <div class="row three" id="g-rates"></div>
+        <div class="row" id="g-rates" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))"></div>
       </div>
       <div class="card">
         <div class="card-head"><h2>Actif personnalisé</h2></div>
@@ -591,6 +639,7 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
     A("MGC", "Micro Or (10 $/pt)", "fut", 10, 0.1, "USD", 1, 4000, 1, 1),
     A("STOCK", "Action US (générique)", "stock", 1, 0.01, "USD", 2, 100, 1, 1)
   ];
+  var TFS = ["M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1"];
   var CURR = ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD"];
 
   // ---------- state ----------
@@ -598,7 +647,12 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
   var DEFAULTS = {
     settings: { capital: 10000, riskPct: 1, maxRiskPct: 2, dailyLossPct: 3, maxTrades: 5, maxLossStreak: 3, winRate: 45, minRR: 1.5,
       lev: { fx: 30, metal: 20, idx: 20, crypto: 2, fut: 20, stock: 5 }, rates: { EUR: 1.08, GBP: 1.27, JPY: 0.0067, CHF: 1.13, CAD: 0.73, AUD: 0.66 }, theme: "auto" },
-    trade: { asset: "EURUSD", dir: "long", entry: 1.085, sl: 1.083, riskPct: 1, wr: 45, tps: [{ price: 1.09, pct: 100 }], be: false, spread: 0.5, comm: 7, recent: ["EURUSD", "XAUUSD", "NAS100", "BTCUSD", "ES"] },
+    strategies: [
+      { id: "s1", name: "Breakout ORB", wr: 42, minRR: 2, tf: "M5" },
+      { id: "s2", name: "Pullback tendance", wr: 50, minRR: 1.5, tf: "H1" },
+      { id: "s3", name: "Retour à la moyenne", wr: 58, minRR: 1.2, tf: "M15" }
+    ],
+    trade: { strat: "s1", tf: "M5", asset: "EURUSD", dir: "long", entry: 1.085, sl: 1.083, riskPct: 1, wr: 45, tps: [{ price: 1.09, pct: 100 }], be: false, spread: 0.5, comm: 7, recent: ["EURUSD", "XAUUSD", "NAS100", "BTCUSD", "ES"] },
     sim: { risk: 1, wr: 45, rr: 2, n: 200, ruin: 30, sd: 5, mode: "pct" },
     emo: { cut: 40, cutr: 0.7, move: 20, mover: 1.8 },
     custom: [], journal: []
@@ -609,6 +663,8 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
   try { var raw = localStorage.getItem(KEY); if (raw) S = merge(clone(DEFAULTS), JSON.parse(raw)); } catch (e) {}
   var saveT = null;
   function save() { clearTimeout(saveT); saveT = setTimeout(function () { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }, 150); }
+  function strat(id) { id = id || S.trade.strat; for (var i = 0; i < S.strategies.length; i++) if (S.strategies[i].id === id) return S.strategies[i]; return null; }
+  function minRR() { var st = strat(); return st && st.minRR > 0 ? st.minRR : S.settings.minRR; }
   function assets() { return BASE_ASSETS.concat(S.custom); }
   function asset(id) { var l = assets(); for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return BASE_ASSETS[0]; }
 
@@ -666,6 +722,7 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
   function renderHeader() {
     var d = dayState(), h = $("hdr-status");
     h.className = "status" + (d.stop ? " bad" : (d.warn ? " mid" : ""));
+    $("hdr-sub").textContent = money(S.settings.capital, 0) + " · jour " + smoney(d.pl, 0);
     h.textContent = d.stop ? "Stop pour aujourd'hui" : (d.warn ? "Prudence" : "Prêt à trader");
   }
 
@@ -756,6 +813,8 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
     $("t-asset-tk").textContent = a.id; $("t-asset-nm").textContent = a.name; $("t-asset-class").textContent = CLASSES[a.cls];
     $("t-sldist-u").textContent = UNIT[a.cls]; $("t-spread-u").textContent = UNIT[a.cls];
     $("t-comm-lbl").textContent = "Commission / " + LOTW[a.cls] + " A/R";
+    $("t-strats").innerHTML = S.strategies.map(function (x) { return '<button type="button" data-id="' + esc(x.id) + '" aria-pressed="' + (x.id === T.strat) + '"><b>' + esc(x.name) + "</b><small>" + pct(x.wr, 0) + " · " + fx(x.minRR, 1) + "R · " + esc(x.tf) + "</small></button>"; }).join("") + '<button type="button" data-id="" aria-pressed="' + (!strat()) + '"><b>Sans stratégie</b><small>réglages généraux</small></button>';
+    $("t-tf").innerHTML = TFS.map(function (t) { return '<button type="button" data-tf="' + t + '" aria-pressed="' + (t === T.tf) + '">' + t + "</button>"; }).join("");
     $("t-recent").innerHTML = T.recent.map(function (id) { return '<button type="button" data-id="' + esc(id) + '" aria-pressed="' + (id === T.asset) + '">' + esc(id) + "</button>"; }).join("");
     var tpActive = active && active.closest && active.closest("#t-tps");
     if (!tpActive) renderTP();
@@ -765,7 +824,8 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
     syncTradeInputs();
     var c = calcTrade(), a = c.a, T = S.trade, st = S.settings;
     var dirTxt = T.dir === "long" ? "Achat" : "Vente";
-    $("t-asset-line").textContent = a.id + " · " + dirTxt;
+    var stx = strat();
+    $("t-asset-line").innerHTML = "<span>" + esc(a.id) + '</span><span class="' + (T.dir === "long" ? "dirL" : "dirS") + '">' + dirTxt + "</span><span>" + esc(T.tf) + "</span>" + (stx ? '<span class="st">' + esc(stx.name) + "</span>" : "");
     $("t-risk-val").textContent = pct(T.riskPct, 2) + " · " + money(st.capital * T.riskPct / 100);
     $("t-sl-note").textContent = isFinite(c.pipVal) ? "1 " + UNIT[a.cls].replace(/s$/, "") + " = " + money(c.pipVal, 2) + " / " + LOTW[a.cls] : "";
     if (!c.ok || !c.lots) {
@@ -784,9 +844,9 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
     $("t-loss").textContent = smoney(-c.loss);
     $("t-gain").textContent = smoney(c.gain);
 
-    var maxR = st.maxRiskPct, rp = c.riskPctReal;
-    setRing("r-risk", rp / maxR, rp > maxR + 1e-9 ? "bad" : (rp > maxR * 0.75 ? "mid" : "good"), pct(rp, 2), money(c.loss) + " / max " + pct(maxR, 1));
-    setRing("r-rr", c.rr / 4, c.rr < st.minRR ? (c.rr < 1 ? "bad" : "mid") : "good", fx(c.rr, 2), c.rr < st.minRR ? "min " + fx(st.minRR, 1) : "net de frais");
+    var maxR = st.maxRiskPct, rp = c.riskPctReal, mrr = minRR();
+    setRing("r-risk", rp / maxR, rp > maxR + 1e-9 ? "bad" : (rp > maxR * 0.75 ? "mid" : "good"), pct(rp, 2), money(c.loss, 0) + " · max " + pct(maxR, 1));
+    setRing("r-rr", c.rr / 4, c.rr < mrr ? (c.rr < 1 ? "bad" : "mid") : "good", fx(c.rr, 2), c.rr < mrr ? "min " + fx(mrr, 1) : "net de frais");
     var margin = c.wr - c.be;
     setRing("r-edge", c.be, margin > 0.05 ? "good" : (margin >= 0 ? "mid" : "bad"), pct(c.be * 100, 0), "vous : " + pct(c.wr * 100, 0), c.wr);
 
@@ -794,7 +854,7 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
     if (rp > maxR + 1e-9) alertBox("t-alert", "bad", "Risque au-dessus de votre limite", "Vous risquez " + pct(rp, 2) + " pour une limite de " + pct(maxR, 1) + ". Baissez le curseur de risque.");
     else if (dayState().stop) alertBox("t-alert", "bad", "Stop pour aujourd'hui", dayState().reason + ". Le meilleur trade maintenant, c'est aucun trade.");
     else if (c.loss > dayState().room + 1e-9) alertBox("t-alert", "mid", "Ce trade dépasse ce qu'il reste pour la journée", "Il vous reste " + money(dayState().room) + " avant la perte max du jour.");
-    else if (c.rr < st.minRR) alertBox("t-alert", "mid", "R:R sous votre minimum", "R:R net de " + fx(c.rr, 2) + " pour un minimum de " + fx(st.minRR, 1) + ". Éloignez l'objectif ou passez votre tour.");
+    else if (c.rr < mrr) alertBox("t-alert", "mid", "R:R sous votre minimum", "R:R net de " + fx(c.rr, 2) + " pour un minimum de " + fx(mrr, 1) + (stx ? " (" + esc(stx.name) + ")" : "") + ". Éloignez l'objectif ou passez votre tour.");
     else if (c.ev <= 0) alertBox("t-alert", "mid", "Espérance négative", "Avec " + pct(c.wr * 100, 0) + " de réussite, il faut au moins " + pct(c.be * 100, 0) + " pour ce R:R.");
     else alertBox("t-alert", "good", "Trade dans les règles", "Espérance " + smoney(c.ev) + " par trade. Placez le SL et le TP maintenant, puis laissez faire.");
 
@@ -814,7 +874,7 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
 
     drawLadder(c);
     var lastTp = c.tps.length ? c.tps[c.tps.length - 1].price : NaN;
-    $("t-oath").innerHTML = "Si le stop à <b>" + fx(c.sl, a.dec) + "</b> est touché, je perds <b>" + money(c.loss) + "</b> (" + pct(rp, 2) + " du capital). Cet argent est déjà dépensé. " +
+    $("t-oath").innerHTML = (stx ? "Setup <b class=\"g\" style=\"color:var(--accent)\">" + esc(stx.name) + "</b> en " + esc(T.tf) + " sur " + esc(a.id) + ". " : "") + "Si le stop à <b>" + fx(c.sl, a.dec) + "</b> est touché, je perds <b>" + money(c.loss) + "</b> (" + pct(rp, 2) + " du capital). Cet argent est déjà dépensé. " +
       "Je ne recule pas le stop. Je laisse le prix aller jusqu'à <b class=\"g\">" + fx(lastTp, a.dec) + "</b> sans sortir par peur. Avec " + pct(c.wr * 100, 0) + " de réussite, environ " +
       fx(Math.round((1 - c.wr) * 10), 0) + " trades sur 10 comme celui-ci finissent au stop. C'est le prix d'entrée dans le jeu.";
   }
@@ -899,6 +959,13 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
     var T = S.trade, sg = T.dir === "long" ? 1 : -1, d = Math.abs(T.entry - T.sl), a = asset(T.asset);
     T.tps[0].price = roundTo(T.entry + sg * parseFloat(b.dataset.r) * d, a.dec + 1); renderTP(); tradeChanged();
   });
+  $("t-strats").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    var T = S.trade; T.strat = b.dataset.id; var x = strat();
+    if (x) { T.wr = x.wr; T.tf = x.tf; } else T.wr = S.settings.winRate;
+    tradeChanged();
+  });
+  $("t-tf").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) { S.trade.tf = b.dataset.tf; tradeChanged(); } });
   $("t-recent").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) pickAsset(b.dataset.id); });
 
   function pickAsset(id) {
@@ -947,7 +1014,7 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
   function addResult(r, note) {
     if (!isFinite(r)) return;
     var now = new Date();
-    S.journal.push({ day: dayKey(now), t: now.getTime(), r: r, usd: r * oneR(), note: note || "" });
+    S.journal.push({ day: dayKey(now), t: now.getTime(), r: r, usd: r * oneR(), note: note || "", asset: S.trade.asset, tf: S.trade.tf, strat: S.trade.strat, dir: S.trade.dir });
     if (S.journal.length > 2000) S.journal = S.journal.slice(-2000);
     save(); renderJour(); renderHeader();
   }
@@ -979,12 +1046,18 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
     $("j-log").innerHTML = d.list.length ? d.list.slice().reverse().map(function (e) {
       var col = e.r > 0 ? "var(--gain)" : (e.r < 0 ? "var(--loss)" : "var(--muted)");
       var tm = new Date(e.t); tm = String(tm.getHours()).padStart(2, "0") + ":" + String(tm.getMinutes()).padStart(2, "0");
-      return '<div class="it"><span class="dot" style="background:' + col + '"></span><span class="tm">' + tm + '</span><span class="ds">' + (esc(e.note) || (e.r > 0 ? "Gain" : (e.r < 0 ? "Perte" : "Point mort"))) +
+      return '<div class="it"><span class="dot" style="background:' + col + '"></span><span class="tm">' + tm + '</span><span class="ds">' + [e.asset, e.tf, strat(e.strat) ? strat(e.strat).name : ""].filter(Boolean).map(esc).join(" · ") + (e.note ? ' <span style="color:var(--muted)">— ' + esc(e.note) + "</span>" : (e.asset ? "" : (e.r > 0 ? "Gain" : (e.r < 0 ? "Perte" : "Point mort")))) +
         '</span><span class="r" style="color:' + col + '">' + R(e.r, 1) + ' · ' + smoney(e.usd, 0) + '</span><button type="button" class="ghost" data-t="' + e.t + '" aria-label="Supprimer" style="padding:4px 8px">×</button></div>';
     }).join("") : '<p class="note">Aucun trade aujourd\'hui. Ajoutez chaque résultat dès la sortie : stop, point mort ou gain.</p>';
     $("j-sum").textContent = d.list.length ? smoney(d.pl, 0) + " · " + R(d.pl / r1, 1) : "";
     var all = S.journal, n = all.length, w = all.filter(function (e) { return e.r > 0; }).length, sumR = all.reduce(function (s, e) { return s + e.r; }, 0);
     var wins = all.filter(function (e) { return e.r > 0; }), avgW = wins.length ? wins.reduce(function (s, e) { return s + e.r; }, 0) / wins.length : NaN;
+    var groups = {}; all.forEach(function (e) { var k = e.strat && strat(e.strat) ? e.strat : ""; (groups[k] = groups[k] || []).push(e); });
+    var keys = Object.keys(groups);
+    $("j-bystrat").innerHTML = keys.length ? "<thead><tr><th>Stratégie</th><th>Trades</th><th>Win rate</th><th>Total</th></tr></thead><tbody>" + keys.map(function (k) {
+      var g = groups[k], gw = g.filter(function (e) { return e.r > 0; }).length, gs = g.reduce(function (s, e) { return s + e.r; }, 0), x = strat(k);
+      return "<tr><td>" + (x ? esc(x.name) : "Sans stratégie") + "</td><td>" + g.length + "</td><td>" + pct(gw / g.length * 100, 0) + (x ? " <small>(prévu " + pct(x.wr, 0) + ")</small>" : "") + '</td><td class="' + (gs > 0 ? "g" : (gs < 0 ? "l" : "")) + '">' + R(gs, 1) + "</td></tr>";
+    }).join("") + "</tbody>" : "<tbody><tr><td>Aucun trade enregistré.</td></tr></tbody>";
     $("j-stats").innerHTML = kv("Trades enregistrés", fx(n, 0)) + kv("Win rate réel", n ? pct(w / n * 100, 0) : "—") + kv("Gain moyen", isFinite(avgW) ? R(avgW, 2) : "—") + kv("Total", n ? R(sumR, 1) : "—", sumR > 0 ? "g" : (sumR < 0 ? "l" : ""));
   }
 
@@ -1047,7 +1120,7 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
   $("s-run").addEventListener("click", runSim);
   $("s-presets").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) { S.sim.risk = parseFloat(b.dataset.p); save(); runSim(); } });
   $("s-mine").addEventListener("click", function () {
-    var all = S.journal; if (all.length < 5) { alertBox("s-alert", "mid", "Pas assez de trades dans le journal", "Enregistrez au moins 5 résultats dans l'écran Jour."); return; }
+    var all = S.journal, cur = strat(); var mine = cur ? all.filter(function (e) { return e.strat === cur.id; }) : []; if (mine.length >= 5) all = mine; if (all.length < 5) { alertBox("s-alert", "mid", "Pas assez de trades dans le journal", "Enregistrez au moins 5 résultats dans l'écran Jour."); return; }
     var w = all.filter(function (e) { return e.r > 0; }), l = all.filter(function (e) { return e.r < 0; });
     S.sim.wr = Math.round(w.length / all.length * 100);
     var aw = w.reduce(function (s, e) { return s + e.r; }, 0) / Math.max(1, w.length), al = -l.reduce(function (s, e) { return s + e.r; }, 0) / Math.max(1, l.length);
@@ -1127,6 +1200,7 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
     $("m-rules").innerHTML = [
       "Je risque " + pct(st.riskPct, 2) + " par trade (" + money(oneR()) + "), jamais plus de " + pct(st.maxRiskPct, 1) + ".",
       "Je pose le stop et l'objectif avant d'entrer. Je ne recule jamais le stop.",
+      "Je ne trade que mes setups écrits" + (S.strategies.length ? " : " + S.strategies.map(function (x) { return esc(x.name) + " (" + esc(x.tf) + ")"; }).join(", ") : "") + ".",
       "Je ne prends pas de trade sous " + fx(st.minRR, 1) + "R.",
       "J'arrête la journée à −" + pct(st.dailyLossPct, 1) + " (" + money(st.capital * st.dailyLossPct / 100, 0) + "), après " + st.maxLossStreak + " pertes d'affilée ou " + st.maxTrades + " trades.",
       "Une série de " + worst + " pertes est normale avec mon win rate. Ce n'est pas un signal pour changer de stratégie.",
@@ -1150,8 +1224,35 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
     document.querySelectorAll("[data-lev]").forEach(function (el) { if (el !== active) el.value = st.lev[el.dataset.lev]; });
     document.querySelectorAll("[data-rate]").forEach(function (el) { if (el !== active) el.value = st.rates[el.dataset.rate]; });
     $("c-list").innerHTML = S.custom.map(function (a) { return '<div class="it"><span class="tag">' + CLASSES[a.cls] + '</span><span class="ds"><b>' + esc(a.id) + "</b> · " + fx(a.cs, 0) + " × " + a.pip + " " + a.quote + '</span><button type="button" class="ghost" data-del="' + esc(a.id) + '" style="padding:4px 8px" aria-label="Supprimer">×</button></div>'; }).join("");
+    if (!(active && active.closest && active.closest("#st-list"))) {
+      $("st-list").innerHTML = S.strategies.map(function (x) {
+        return '<div class="strow" data-id="' + esc(x.id) + '"><input data-k="name" type="text" maxlength="28" aria-label="Nom" value="' + esc(x.name) + '">' +
+          '<input data-k="wr" type="number" inputmode="decimal" min="1" max="99" step="1" aria-label="Win rate %" value="' + x.wr + '">' +
+          '<input data-k="minRR" type="number" inputmode="decimal" min="0" step="0.1" aria-label="R:R minimum" value="' + x.minRR + '">' +
+          '<select data-k="tf" aria-label="Timeframe">' + TFS.map(function (t) { return "<option" + (t === x.tf ? " selected" : "") + ">" + t + "</option>"; }).join("") + "</select>" +
+          '<button type="button" class="ghost" data-k="del" style="padding:6px 0" aria-label="Supprimer">×</button></div>';
+      }).join("") || '<p class="note">Aucune stratégie. Ajoutez-en une.</p>';
+    }
     applyTheme();
   }
+  function stEdit(e) {
+    var row = e.target.closest(".strow"); if (!row) return; var x = strat(row.dataset.id), k = e.target.dataset.k; if (!x || !k || k === "del") return;
+    if (k === "name") x.name = e.target.value.trim() || "Stratégie";
+    else if (k === "tf") x.tf = e.target.value;
+    else { var v = parseFloat(String(e.target.value).replace(",", ".")); if (isFinite(v) && v >= 0) x[k] = k === "wr" ? clamp(v, 1, 99) : v; }
+    if (S.trade.strat === x.id) { S.trade.wr = x.wr; if (k === "tf") S.trade.tf = x.tf; }
+    save();
+  }
+  $("st-list").addEventListener("input", stEdit);
+  $("st-list").addEventListener("change", stEdit);
+  $("st-list").addEventListener("click", function (e) {
+    var b = e.target.closest('[data-k="del"]'); if (!b) return; var id = b.closest(".strow").dataset.id;
+    S.strategies = S.strategies.filter(function (x) { return x.id !== id; }); if (S.trade.strat === id) S.trade.strat = ""; save(); renderSettings();
+  });
+  $("st-add").addEventListener("click", function () {
+    var id = "s" + Date.now().toString(36); S.strategies.push({ id: id, name: "Nouvelle stratégie", wr: S.settings.winRate, minRR: S.settings.minRR, tf: S.trade.tf || "M15" });
+    save(); renderSettings(); var inp = document.querySelector('.strow[data-id="' + id + '"] input'); if (inp) { inp.focus(); inp.select(); }
+  });
   document.addEventListener("input", function (e) {
     var el = e.target, v = parseFloat(String(el.value).replace(",", "."));
     if (el.dataset.set) { if (isFinite(v) && v >= 0) { S.settings[el.dataset.set] = v; if (el.dataset.set === "riskPct") S.trade.riskPct = v; if (el.dataset.set === "winRate") { S.trade.wr = v; S.sim.wr = v; } save(); renderHeader(); } }
