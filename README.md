@@ -22,7 +22,7 @@ an order on its own. Paper trading is the default.
 > This repo is its day-trading sequel: the Trader skill v2.
 
 
-## Rester Vivant : l'application de gestion du risque
+## Mikdlock Risk Management : l'application de gestion du risque
 
 `risk-app/index.html` est une application autonome (un seul fichier, aucune
 installation : ouvrez-le dans un navigateur). Elle sert à accepter la perte

@@ -1,4 +1,4 @@
-name: Deploy Rester Vivant to GitHub Pages
+name: Deploy Mikdlock Risk Management to GitHub Pages
 
 on:
   push:

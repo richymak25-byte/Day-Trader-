@@ -1,6 +1,6 @@
 {
-  "name": "Rester Vivant",
-  "short_name": "Rester Vivant",
+  "name": "Mikdlock Risk Management",
+  "short_name": "Mikdlock",
   "description": "Gestion du risque de trading : taille de position, SL/TP, limites du jour et simulation des séries de pertes.",
   "lang": "fr",
   "start_url": "./#trade",

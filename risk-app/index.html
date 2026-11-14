@@ -3,20 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Rester Vivant</title>
+<title>Mikdlock Risk Management</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="Gestion du risque de trading : taille de position, SL/TP, limites du jour, simulation des séries de pertes.">
 <meta name="theme-color" content="#0B1118">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Rester Vivant">
+<meta name="apple-mobile-web-app-title" content="Mikdlock">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: a pocket risk desk — app bar on top, bottom tab bar on phones that becomes a left rail on wide screens; each screen opens with rings, then the detail. */
 :root {
@@ -38,9 +38,9 @@
   --warn-soft: #2D230E;
   --glow: 0.45;
   --shadow: 0 1px 0 rgba(255,255,255,.035) inset, 0 12px 32px -18px rgba(0,0,0,.8);
-  --f-display: "Geist", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
-  --f-body: "Geist", "SF Pro Text", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --f-data: "Geist Mono", "SF Mono", ui-monospace, Menlo, monospace;
+  --f-display: "Montserrat", Arial, Verdana, sans-serif;
+  --f-body: "Montserrat", Arial, Verdana, sans-serif;
+  --f-data: "Montserrat", Arial, Verdana, sans-serif;
   --nav-h: 66px;
   color-scheme: dark;
 }
@@ -62,7 +62,7 @@
 [hidden] { display: none !important; }
 html, body { margin: 0; }
 body {
-  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45; font-feature-settings: "ss01", "cv11"; letter-spacing: -0.005em;
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45; font-variant-numeric: tabular-nums; letter-spacing: 0;
   -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
 }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
@@ -72,12 +72,14 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .appbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 .appbar .gutter { display: flex; align-items: center; gap: 12px; padding-block: 12px; max-width: 1180px; margin: 0 auto; }
 .logo { width: 30px; height: 30px; flex: none; }
-.appbar h1 { font-family: var(--f-display); font-weight: 700; font-size: 18px; letter-spacing: -0.035em; margin: 0; line-height: 1.1; }
+.appbar h1 { font-family: var(--f-display); font-weight: 800; font-size: 17px; letter-spacing: 0.06em; margin: 0; line-height: 1.15; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.appbar h1 em { font-style: normal; font-weight: 500; color: var(--muted); letter-spacing: 0.1em; font-size: 0.72em; margin-left: 6px; }
 .brandtxt { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .brandtxt span { font: 500 11.5px var(--f-data); color: var(--muted); letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 99px; background: var(--gain-soft); color: var(--gain); white-space: nowrap; }
 .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .status.mid { background: var(--warn-soft); color: var(--warn); }
+@media (max-width: 480px) { .status { font-size: 0; gap: 0; padding: 8px; } .status::before { width: 9px; height: 9px; } }
 .status.bad { background: var(--loss-soft); color: var(--loss); }
 
 nav.tabbar {
@@ -132,7 +134,7 @@ main > .gutter { max-width: 1180px; margin: 0 auto; padding-block: 8px 0; }
 .hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr); gap: 18px; align-items: center; }
 @media (max-width: 720px) { .hero { grid-template-columns: minmax(0, 1fr); } }
 .big { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.big .val { font-family: var(--f-display); font-weight: 700; font-size: clamp(42px, 10vw, 60px); letter-spacing: -0.05em; line-height: 1; font-variant-numeric: tabular-nums; }
+.big .val { font-family: var(--f-display); font-weight: 700; font-size: clamp(40px, 10vw, 58px); letter-spacing: -0.035em; line-height: 1; font-variant-numeric: tabular-nums; }
 .big .val small { font-size: 0.42em; font-weight: 600; color: var(--muted); letter-spacing: 0; margin-left: 6px; }
 .big .sub { color: var(--muted); font-size: 13px; }
 .pl { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
@@ -148,7 +150,7 @@ main > .gutter { max-width: 1180px; margin: 0 auto; padding-block: 8px 0; }
 .ring .arc { filter: drop-shadow(0 0 5px color-mix(in srgb, var(--tone) calc(var(--glow) * 100%), transparent)); fill: none; stroke: var(--tone); stroke-width: 7; stroke-linecap: round; transition: stroke-dasharray .6s cubic-bezier(.2,.8,.2,1), stroke .3s; }
 .ring .mk { fill: var(--ink); transition: transform .6s cubic-bezier(.2,.8,.2,1); transform-origin: 50px 50px; }
 .ring .in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18%; }
-.ring .c { font: 600 clamp(15px, 4.2vw, 21px)/1.05 var(--f-data); letter-spacing: -0.04em !important; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.ring .c { font: 700 clamp(14px, 3.9vw, 20px)/1.05 var(--f-data); letter-spacing: -0.02em !important; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .ring .cs { font-size: 10.5px; color: var(--muted); margin-top: 3px; line-height: 1.2; }
 .ring .lb { font-size: 12px; font-weight: 600; }
 .ring[data-tone="good"] { --tone: var(--gain); } .ring[data-tone="good"] .c { color: var(--gain); }
@@ -162,7 +164,7 @@ main > .gutter { max-width: 1180px; margin: 0 auto; padding-block: 8px 0; }
 .row.two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 input, select {
-  font: 500 16px/1.2 var(--f-data); letter-spacing: -0.02em; color: var(--ink); background: var(--raised); border: 1px solid var(--line); border-radius: 10px;
+  font: 500 16px/1.2 var(--f-data); letter-spacing: 0; color: var(--ink); background: var(--raised); border: 1px solid var(--line); border-radius: 10px;
   padding: 11px 12px; width: 100%; min-width: 0; font-variant-numeric: tabular-nums; appearance: none; -webkit-appearance: none;
 }
 select { font-family: var(--f-body); font-weight: 600; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 17px) 52%, calc(100% - 12px) 52%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 30px; }
@@ -203,7 +205,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .chips button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 
 .assetbtn { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 12px 14px; }
-.assetbtn .tk { font: 700 18px var(--f-display); letter-spacing: -0.03em; }
+.assetbtn .tk { font: 700 18px var(--f-display); letter-spacing: -0.01em; }
 .assetbtn .nm { color: var(--muted); font-size: 13px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tag { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 3px 7px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); }
 
@@ -229,7 +231,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 .kv > div { background: var(--surface); padding: 11px 13px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .kv .k { font-size: 11.5px; color: var(--muted); }
-.kv .v { font: 600 16px var(--f-data); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.kv .v { font: 600 16px var(--f-data); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .kv .v.g { color: var(--gain); } .kv .v.l { color: var(--loss); } .kv .v.w { color: var(--warn); }
 
 .tablebox { overflow-x: auto; margin: 0 -4px; }
@@ -285,7 +287,7 @@ footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; paddin
 <header class="appbar">
   <div class="gutter">
     <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="24" fill="none" stroke="var(--track)" stroke-width="7"/><path d="M32 8 A24 24 0 1 1 9.2 39.4" fill="none" stroke="var(--gain)" stroke-width="7" stroke-linecap="round"/><circle cx="9.2" cy="39.4" r="5" fill="var(--loss)"/></svg>
-    <div class="brandtxt"><h1>Rester Vivant</h1><span id="hdr-sub">10 000 $ · jour +0 $</span></div>
+    <div class="brandtxt"><h1>Mikdlock<em>Risk Management</em></h1><span id="hdr-sub">10 000 $ · jour +0 $</span></div>
     <span class="status" id="hdr-status">Prêt à trader</span>
   </div>
 </header>
