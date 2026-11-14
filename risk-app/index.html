@@ -5,789 +5,1203 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Rester Vivant</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Gestion du risque de trading : taille de position, SL/TP, limites du jour, simulation des séries de pertes.">
+<meta name="theme-color" content="#0B1118">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Rester Vivant">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap">
 <style>
-/* Layout: a trading-desk ledger — sticky tab bar, inputs on the left, verdict and numbers on the right, stacking on phones. */
+/* Layout: a pocket risk desk — app bar on top, bottom tab bar on phones that becomes a left rail on wide screens; each screen opens with rings, then the detail. */
 :root {
-  --bg: #EEF1F4;
-  --surface: #FFFFFF;
-  --sunk: #F5F7F9;
-  --ink: #142033;
-  --muted: #5A6678;
-  --line: #D5DCE4;
-  --accent: #2F4F8F;
-  --accent-soft: #E1E8F5;
-  --gain: #1E7F52;
-  --gain-soft: #DDF1E6;
-  --loss: #B83A32;
-  --loss-soft: #F8E1DE;
-  --warn: #9A6208;
-  --warn-soft: #F7EBD3;
-  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --bg: #0B1118;
+  --surface: #121A24;
+  --raised: #182230;
+  --ink: #E6ECF3;
+  --muted: #8C9AAD;
+  --line: #233042;
+  --track: #223044;
+  --accent: #7FA8FF;
+  --accent-ink: #0B1118;
+  --accent-soft: #1A2840;
+  --gain: #3DD68C;
+  --gain-soft: #12301F;
+  --loss: #FF6B5E;
+  --loss-soft: #36181A;
+  --warn: #F5B544;
+  --warn-soft: #33270F;
+  --f-display: "Sora", "Avenir Next", "Segoe UI", sans-serif;
   --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-data: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
-  color-scheme: light;
+  --nav-h: 64px;
+  color-scheme: dark;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0F151D; --surface: #17202B; --sunk: #121A23; --ink: #E4E9F0; --muted: #93A0B2; --line: #2A3646;
-    --accent: #8FAAE6; --accent-soft: #1F2D45; --gain: #4CC48A; --gain-soft: #163428; --loss: #F07A6E; --loss-soft: #3A1E1C;
-    --warn: #E0A84A; --warn-soft: #3A2C14; color-scheme: dark;
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #EDF1F6; --surface: #FFFFFF; --raised: #F5F7FA; --ink: #131C29; --muted: #5D6B7E; --line: #DCE3EC; --track: #E3E9F1;
+    --accent: #2F5BD3; --accent-ink: #FFFFFF; --accent-soft: #E3EAFB; --gain: #13834F; --gain-soft: #DCF2E6;
+    --loss: #C4372C; --loss-soft: #FBE3E0; --warn: #A2650A; --warn-soft: #F8ECD4; color-scheme: light;
   }
 }
-:root[data-theme="dark"] {
-  --bg: #0F151D; --surface: #17202B; --sunk: #121A23; --ink: #E4E9F0; --muted: #93A0B2; --line: #2A3646;
-  --accent: #8FAAE6; --accent-soft: #1F2D45; --gain: #4CC48A; --gain-soft: #163428; --loss: #F07A6E; --loss-soft: #3A1E1C;
-  --warn: #E0A84A; --warn-soft: #3A2C14; color-scheme: dark;
+:root[data-theme="light"] {
+  --bg: #EDF1F6; --surface: #FFFFFF; --raised: #F5F7FA; --ink: #131C29; --muted: #5D6B7E; --line: #DCE3EC; --track: #E3E9F1;
+  --accent: #2F5BD3; --accent-ink: #FFFFFF; --accent-soft: #E3EAFB; --gain: #13834F; --gain-soft: #DCF2E6;
+  --loss: #C4372C; --loss-soft: #FBE3E0; --warn: #A2650A; --warn-soft: #F8ECD4; color-scheme: light;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; }
 body {
-  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45;
+  -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
 }
-body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
-.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-header.top { background: var(--surface); border-bottom: 1px solid var(--line); }
-header.top .wrap { padding-block: 22px 0; display: flex; flex-direction: column; gap: 6px; }
-.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-h1 { font-family: var(--f-display); font-weight: 800; font-size: clamp(26px, 4vw, 34px); letter-spacing: -0.02em; margin: 0; }
-.tagline { color: var(--muted); margin: 0; max-width: 62ch; }
-nav.tabs { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
-nav.tabs .wrap { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
-nav.tabs a {
-  font-family: var(--f-display); font-weight: 700; font-size: 14px; color: var(--muted); text-decoration: none;
-  padding: 12px 12px 11px; border-bottom: 3px solid transparent; white-space: nowrap;
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
+.gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* ---------- shell ---------- */
+.appbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.appbar .gutter { display: flex; align-items: center; gap: 12px; padding-block: 12px; max-width: 1180px; margin: 0 auto; }
+.logo { width: 30px; height: 30px; flex: none; }
+.appbar h1 { font-family: var(--f-display); font-weight: 700; font-size: 19px; letter-spacing: -0.02em; margin: 0; flex: 1; min-width: 0; }
+.status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 99px; background: var(--gain-soft); color: var(--gain); white-space: nowrap; }
+.status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.status.mid { background: var(--warn-soft); color: var(--warn); }
+.status.bad { background: var(--loss-soft); color: var(--loss); }
+
+nav.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; background: var(--surface); border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
+  display: grid; grid-template-columns: repeat(5, 1fr);
 }
-nav.tabs a:hover { color: var(--ink); }
-nav.tabs a[aria-current="page"] { color: var(--accent); border-bottom-color: var(--accent); }
-nav.tabs a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-main .wrap { padding-block: 24px 48px; }
-section.view { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 24px; align-items: start; }
-@media (max-width: 820px) { section.view { grid-template-columns: minmax(0, 1fr); } }
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-.panel h2 { font-family: var(--f-display); font-size: 17px; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
-.panel h3 { font-family: var(--f-display); font-size: 15px; margin: 0; }
-.eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-.stack { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
-.field { display: flex; flex-direction: column; gap: 4px; }
-.field label { font-size: 13px; font-weight: 600; }
-.hint { font-size: 12px; color: var(--muted); }
-.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+nav.tabbar a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; height: var(--nav-h); color: var(--muted); text-decoration: none; font-size: 11px; font-weight: 600; }
+nav.tabbar svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+nav.tabbar a[aria-current="page"] { color: var(--accent); }
+main { padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 24px); }
+main > .gutter { max-width: 1180px; margin: 0 auto; padding-block: 8px 0; }
+@media (min-width: 960px) {
+  nav.tabbar { top: 0; right: auto; width: 96px; border-top: 0; border-right: 1px solid var(--line); grid-template-columns: 1fr; grid-auto-rows: 76px; align-content: start; padding-top: calc(env(safe-area-inset-top, 0px) + 72px); }
+  nav.tabbar a { height: auto; }
+  .appbar, main { margin-left: 96px; }
+  main { padding-bottom: 40px; }
+}
+
+/* ---------- building blocks ---------- */
+.screen { display: flex; flex-direction: column; gap: 16px; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.card h2 { font-family: var(--f-display); font-size: 16px; font-weight: 600; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+.hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr); gap: 18px; align-items: center; }
+@media (max-width: 720px) { .hero { grid-template-columns: minmax(0, 1fr); } }
+.big { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.big .val { font-family: var(--f-display); font-weight: 700; font-size: clamp(38px, 9vw, 54px); letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.big .val small { font-size: 0.42em; font-weight: 600; color: var(--muted); letter-spacing: 0; margin-left: 6px; }
+.big .sub { color: var(--muted); font-size: 13px; }
+.pl { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.pl span { font: 600 14px var(--f-data); padding: 6px 10px; border-radius: 10px; font-variant-numeric: tabular-nums; }
+.pl .l { background: var(--loss-soft); color: var(--loss); } .pl .g { background: var(--gain-soft); color: var(--gain); }
+
+.rings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.ring { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; min-width: 0; }
+.ring .dial { position: relative; width: 100%; max-width: 132px; aspect-ratio: 1; }
+.ring svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
+.ring .trk { fill: none; stroke: var(--track); stroke-width: 9; }
+.ring .arc { fill: none; stroke: var(--accent); stroke-width: 9; stroke-linecap: round; transition: stroke-dasharray .6s cubic-bezier(.2,.8,.2,1), stroke .3s; }
+.ring .mk { fill: var(--ink); transition: transform .6s cubic-bezier(.2,.8,.2,1); transform-origin: 50px 50px; }
+.ring .in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18%; }
+.ring .c { font: 600 clamp(15px, 4.2vw, 21px)/1.05 var(--f-data); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.ring .cs { font-size: 10.5px; color: var(--muted); margin-top: 3px; line-height: 1.2; }
+.ring .lb { font-size: 12px; font-weight: 600; }
+.ring[data-tone="good"] .arc { stroke: var(--gain); } .ring[data-tone="good"] .c { color: var(--gain); }
+.ring[data-tone="mid"] .arc { stroke: var(--warn); } .ring[data-tone="mid"] .c { color: var(--warn); }
+.ring[data-tone="bad"] .arc { stroke: var(--loss); } .ring[data-tone="bad"] .c { color: var(--loss); }
+
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field > label, .lbl { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.row.two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 input, select {
-  font: 500 15px/1.2 var(--f-data); color: var(--ink); background: var(--sunk); border: 1px solid var(--line); border-radius: 7px;
-  padding: 9px 10px; width: 100%; min-width: 0; font-variant-numeric: tabular-nums;
+  font: 500 16px/1.2 var(--f-data); color: var(--ink); background: var(--raised); border: 1px solid var(--line); border-radius: 12px;
+  padding: 11px 12px; width: 100%; min-width: 0; font-variant-numeric: tabular-nums; appearance: none; -webkit-appearance: none;
 }
-select { font-family: var(--f-body); }
+select { font-family: var(--f-body); font-weight: 600; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 17px) 52%, calc(100% - 12px) 52%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 30px; }
+input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .unit { position: relative; }
-.unit input { padding-right: 34px; }
-.unit span { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); font: 500 13px var(--f-data); pointer-events: none; }
-button {
-  font: 600 14px var(--f-body); border-radius: 7px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
-  padding: 9px 12px; cursor: pointer;
-}
-button:hover { border-color: var(--accent); color: var(--accent); }
-button.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
-button.primary:hover { filter: brightness(1.08); color: var(--surface); }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chips button { padding: 6px 10px; font-size: 13px; }
+.unit input { padding-right: 52px; }
+.unit > span { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font: 500 12px var(--f-data); pointer-events: none; }
+input[type="checkbox"] { appearance: auto; -webkit-appearance: checkbox; width: 18px; height: 18px; padding: 0; }
+input[type="range"] { padding: 0; height: 28px; background: transparent; border: 0; box-shadow: none; accent-color: var(--accent); }
+input[type="range"]::-webkit-slider-runnable-track { height: 6px; border-radius: 6px; background: var(--track); }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; margin-top: -9px; border-radius: 50%; background: var(--accent); border: 3px solid var(--surface); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+input[type="range"]::-moz-range-track { height: 6px; border-radius: 6px; background: var(--track); }
+input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 3px solid var(--surface); }
+.slider { display: flex; flex-direction: column; gap: 2px; }
+.slider .top { display: flex; justify-content: space-between; align-items: baseline; }
+.slider .top b { font: 600 15px var(--f-data); }
+
+button { font: 600 14px var(--f-body); border-radius: 12px; border: 1px solid var(--line); background: var(--raised); color: var(--ink); padding: 11px 14px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button.ghost { background: transparent; }
+button.win { background: var(--gain-soft); border-color: transparent; color: var(--gain); }
+button.lose { background: var(--loss-soft); border-color: transparent; color: var(--loss); }
+button.danger { color: var(--loss); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--raised); border: 1px solid var(--line); border-radius: 12px; padding: 3px; gap: 3px; }
+.seg button { border: 0; background: transparent; padding: 8px 10px; border-radius: 9px; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+.seg.dir button[data-v="long"][aria-pressed="true"] { background: var(--gain-soft); color: var(--gain); }
+.seg.dir button[data-v="short"][aria-pressed="true"] { background: var(--loss-soft); color: var(--loss); }
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.chips::-webkit-scrollbar { display: none; }
+.chips button { padding: 7px 11px; font-size: 13px; white-space: nowrap; border-radius: 99px; }
 .chips button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-.kpi { background: var(--sunk); border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.kpi .k { font-size: 12px; color: var(--muted); }
-.kpi .v { font: 600 21px/1.2 var(--f-data); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.kpi .s { font-size: 12px; color: var(--muted); }
-.kpi.loss .v { color: var(--loss); } .kpi.gain .v { color: var(--gain); } .kpi.warn .v { color: var(--warn); }
-.verdict { border-radius: 8px; padding: 14px 16px; border: 1px solid var(--line); background: var(--sunk); display: flex; flex-direction: column; gap: 6px; }
-.verdict strong { font-family: var(--f-display); font-size: 16px; }
-.verdict p { margin: 0; }
-.verdict.good { background: var(--gain-soft); border-color: transparent; } .verdict.good strong { color: var(--gain); }
-.verdict.bad { background: var(--loss-soft); border-color: transparent; } .verdict.bad strong { color: var(--loss); }
-.verdict.mid { background: var(--warn-soft); border-color: transparent; } .verdict.mid strong { color: var(--warn); }
-.pill { display: inline-block; font: 600 11px var(--f-body); letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; }
-.pill.good { background: var(--gain-soft); color: var(--gain); } .pill.bad { background: var(--loss-soft); color: var(--loss); } .pill.mid { background: var(--warn-soft); color: var(--warn); }
-.tablebox { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: 14px; }
-th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+
+.assetbtn { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 12px 14px; }
+.assetbtn .tk { font: 700 17px var(--f-display); letter-spacing: -0.01em; }
+.assetbtn .nm { color: var(--muted); font-size: 13px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 3px 7px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); }
+
+.tp { display: grid; grid-template-columns: 34px minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, .9fr) 34px; gap: 8px; align-items: center; }
+.tp .n { font: 700 12px var(--f-display); color: var(--gain); }
+.tp .x { padding: 8px 0; border: 0; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; }
+.tp .x:hover { color: var(--loss); }
+.tphead { display: grid; grid-template-columns: 34px minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, .9fr) 34px; gap: 8px; font-size: 11px; color: var(--muted); font-weight: 600; }
+.quick { display: flex; gap: 6px; flex-wrap: wrap; }
+.quick button { padding: 6px 10px; font-size: 12.5px; border-radius: 99px; }
+
+.ladder { width: 100%; height: 132px; display: block; }
+.oath { margin: 0; font-size: 15px; line-height: 1.6; }
+.oath b { font-family: var(--f-data); font-weight: 600; color: var(--loss); }
+.oath b.g { color: var(--gain); }
+.alert { border-radius: 14px; padding: 12px 14px; font-size: 14px; display: flex; flex-direction: column; gap: 3px; }
+.alert strong { font-family: var(--f-display); font-weight: 600; }
+.alert.bad { background: var(--loss-soft); color: var(--loss); }
+.alert.mid { background: var(--warn-soft); color: var(--warn); }
+.alert.good { background: var(--gain-soft); color: var(--gain); }
+.alert p { margin: 0; color: var(--ink); opacity: .9; }
+
+.kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.kv > div { background: var(--surface); padding: 11px 13px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kv .k { font-size: 11.5px; color: var(--muted); }
+.kv .v { font: 600 16px var(--f-data); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.kv .v.g { color: var(--gain); } .kv .v.l { color: var(--loss); } .kv .v.w { color: var(--warn); }
+
+.tablebox { overflow-x: auto; margin: 0 -4px; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { padding: 9px 8px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
 th:first-child, td:first-child { text-align: left; }
-th { font-size: 12px; font-weight: 600; color: var(--muted); }
+th { font-size: 11.5px; font-weight: 600; color: var(--muted); }
 td { font-family: var(--f-data); font-variant-numeric: tabular-nums; }
-td.g { color: var(--gain); } td.l { color: var(--loss); } td.w { color: var(--warn); }
+td.g { color: var(--gain); } td.l { color: var(--loss); }
 td.cl { background: var(--loss-soft); color: var(--loss); } td.cw { background: var(--warn-soft); color: var(--warn); } td.cg { background: var(--gain-soft); color: var(--gain); }
 tr.hl td { background: var(--accent-soft); }
-.chart { width: 100%; height: 300px; display: block; }
-.chart.small { height: 200px; }
-.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); }
-.legend i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
-.oath { font-size: 16px; line-height: 1.6; margin: 0; }
-.oath b { font-family: var(--f-data); color: var(--loss); }
-.oath b.g { color: var(--gain); }
-.note { font-size: 13px; color: var(--muted); margin: 0; max-width: 70ch; }
-.bars { display: flex; flex-direction: column; gap: 10px; }
-.bar { display: grid; grid-template-columns: 150px 1fr 90px; gap: 10px; align-items: center; font-size: 13px; }
-@media (max-width: 480px) { .bar { grid-template-columns: 1fr 70px; } .bar .track { grid-column: 1 / -1; grid-row: 2; } }
-.track { height: 14px; background: var(--sunk); border: 1px solid var(--line); border-radius: 4px; position: relative; overflow: hidden; }
-.track .fill { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
-.bar .val { font-family: var(--f-data); text-align: right; font-variant-numeric: tabular-nums; }
-.err { color: var(--loss); font-size: 13px; margin: 0; }
-footer { color: var(--muted); font-size: 12px; }
-footer .wrap { padding-block: 0 32px; }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+td small { font-family: var(--f-body); font-size: 10.5px; opacity: .85; }
+
+.log { display: flex; flex-direction: column; }
+.log .it { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.log .it:last-child { border-bottom: 0; }
+.log .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.log .tm { color: var(--muted); font: 500 12px var(--f-data); width: 44px; }
+.log .ds { flex: 1; min-width: 0; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log .r { font: 600 14px var(--f-data); }
+.streakbar { display: flex; gap: 4px; flex-wrap: wrap; }
+.streakbar i { width: 16px; height: 16px; border-radius: 5px; background: var(--track); }
+.streakbar i.w { background: var(--gain); } .streakbar i.l { background: var(--loss); } .streakbar i.b { background: var(--muted); }
+
+.chart { width: 100%; height: 260px; display: block; }
+.chart.small { height: 180px; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11.5px; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 8px; border-radius: 2px; margin-right: 5px; }
+.bars { display: flex; flex-direction: column; gap: 12px; }
+.bar { display: grid; grid-template-columns: 130px minmax(0, 1fr) 72px; gap: 10px; align-items: center; font-size: 13px; }
+@media (max-width: 480px) { .bar { grid-template-columns: minmax(0, 1fr) 72px; } .bar .track { grid-column: 1 / -1; grid-row: 2; } }
+.track { height: 12px; background: var(--raised); border-radius: 6px; position: relative; overflow: hidden; }
+.track .fill { position: absolute; top: 0; bottom: 0; border-radius: 6px; transition: left .5s, width .5s; }
+.track .zero { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--muted); }
+.bar .val { font: 600 13px var(--f-data); text-align: right; }
+.rules { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.list-assets { display: flex; flex-direction: column; gap: 4px; max-height: 60vh; overflow-y: auto; }
+.list-assets button { display: flex; align-items: center; gap: 10px; text-align: left; border: 0; background: transparent; border-radius: 10px; padding: 10px 8px; }
+.list-assets button:hover, .list-assets button[aria-pressed="true"] { background: var(--accent-soft); }
+.list-assets .tk { font: 700 14px var(--f-display); width: 76px; flex: none; }
+.list-assets .nm { flex: 1; color: var(--muted); font-size: 13px; min-width: 0; }
+.list-assets .sp { font: 500 11px var(--f-data); color: var(--muted); text-align: right; }
+dialog { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 20px; padding: 18px; width: min(520px, calc(100vw - 32px)); max-height: 86vh; }
+dialog::backdrop { background: rgba(4, 8, 14, .6); }
+.dlg-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+.dlg-head h2 { font-family: var(--f-display); font-size: 17px; margin: 0; }
+.confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+footer.disc { color: var(--muted); font-size: 11.5px; text-align: center; padding-block: 8px 0; }
+@media (prefers-reduced-motion: reduce) { *, .ring .arc, .ring .mk { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
-<header class="top">
-  <div class="wrap">
-    <div class="brand"><h1>Rester Vivant</h1><span class="eyebrow">Gestion du risque</span></div>
-    <p class="tagline">Chiffrez la perte avant d'entrer, regardez les séries de pertes en face, et laissez le plan travailler. Une perte prévue est un coût, pas une erreur.</p>
+<header class="appbar">
+  <div class="gutter">
+    <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="24" fill="none" stroke="var(--track)" stroke-width="7"/><path d="M32 8 A24 24 0 1 1 9.2 39.4" fill="none" stroke="var(--gain)" stroke-width="7" stroke-linecap="round"/><circle cx="9.2" cy="39.4" r="5" fill="var(--loss)"/></svg>
+    <h1>Rester Vivant</h1>
+    <span class="status" id="hdr-status">Prêt à trader</span>
   </div>
 </header>
-<nav class="tabs" aria-label="Modules">
-  <div class="wrap">
-    <a href="#position" data-view="position">Position</a>
-    <a href="#simulation" data-view="simulation">Simulation</a>
-    <a href="#series" data-view="series">Séries de pertes</a>
-    <a href="#emotions" data-view="emotions">Coût des émotions</a>
-  </div>
+
+<nav class="tabbar" aria-label="Écrans">
+  <a href="#trade" data-view="trade"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.8"/></svg>Trade</a>
+  <a href="#jour" data-view="jour"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Jour</a>
+  <a href="#simuler" data-view="simuler"><svg viewBox="0 0 24 24"><path d="M3 19c3-1 4-6 7-7s4 3 6 1 3-7 5-9"/><path d="M3 21h18"/></svg>Simuler</a>
+  <a href="#mental" data-view="mental"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10z"/></svg>Mental</a>
+  <a href="#reglages" data-view="reglages"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>Réglages</a>
 </nav>
 
 <main>
-<div class="wrap">
+<div class="gutter">
 
-<!-- ============ POSITION ============ -->
-<section class="view" id="view-position">
-  <form class="panel" id="f-pos" autocomplete="off">
-    <h2>Le trade</h2>
-    <div class="field">
-      <label for="pos-capital">Capital</label>
-      <div class="unit"><input id="pos-capital" type="number" step="any" min="0" value="10000"><span>$</span></div>
-    </div>
-    <div class="row2">
-      <div class="field">
-        <label for="pos-risk">Risque</label>
-        <div class="unit"><input id="pos-risk" type="number" step="0.05" min="0" value="1"><span>%</span></div>
+<!-- =================== TRADE =================== -->
+<section class="screen" id="view-trade">
+  <div class="card">
+    <div class="hero">
+      <div class="big">
+        <span class="eyebrow" id="t-asset-line">EUR/USD · Achat</span>
+        <span class="val" id="t-size">0,50<small>lot</small></span>
+        <span class="sub" id="t-size-sub">50 000 unités · marge 1 808 $</span>
+        <div class="pl"><span class="l" id="t-loss">−100 $</span><span class="g" id="t-gain">+250 $</span></div>
       </div>
-      <div class="field">
-        <label for="pos-riskusd">soit</label>
-        <div class="unit"><input id="pos-riskusd" type="number" step="any" min="0" value="100"><span>$</span></div>
+      <div class="rings">
+        <div class="ring" id="r-risk"><div class="dial"><svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="42"/><circle class="arc" cx="50" cy="50" r="42"/></svg><div class="in"><span class="c">—</span><span class="cs"></span></div></div><span class="lb">Risque</span></div>
+        <div class="ring" id="r-rr"><div class="dial"><svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="42"/><circle class="arc" cx="50" cy="50" r="42"/></svg><div class="in"><span class="c">—</span><span class="cs"></span></div></div><span class="lb">R:R</span></div>
+        <div class="ring" id="r-edge"><div class="dial"><svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="42"/><circle class="arc" cx="50" cy="50" r="42"/><circle class="mk" cx="50" cy="8" r="4.5"/></svg><div class="in"><span class="c">—</span><span class="cs"></span></div></div><span class="lb">Win rate requis</span></div>
       </div>
     </div>
-    <div class="field">
-      <label for="pos-dir">Sens</label>
-      <select id="pos-dir"><option value="long">Achat (long)</option><option value="short">Vente (short)</option></select>
-    </div>
-    <div class="row2">
-      <div class="field"><label for="pos-entry">Entrée</label><input id="pos-entry" type="number" step="any" value="100"></div>
-      <div class="field"><label for="pos-stop">Stop</label><input id="pos-stop" type="number" step="any" value="98"></div>
-    </div>
-    <div class="row2">
-      <div class="field"><label for="pos-target">Objectif</label><input id="pos-target" type="number" step="any" value="105"></div>
-      <div class="field"><label for="pos-wr">Win rate estimé</label><div class="unit"><input id="pos-wr" type="number" step="1" min="1" max="99" value="45"><span>%</span></div></div>
-    </div>
-    <div class="field">
-      <label for="pos-fees">Frais aller-retour</label>
-      <div class="unit"><input id="pos-fees" type="number" step="any" min="0" value="0"><span>$</span></div>
-      <span class="hint">Commissions totales du trade, ajoutées à la perte et retirées du gain.</span>
-    </div>
-    <p class="err" id="pos-err" hidden></p>
-    <button type="button" class="primary" id="pos-send">Simuler 200 trades comme celui-ci</button>
-  </form>
+    <div id="t-alert"></div>
+  </div>
 
-  <div class="stack">
-    <div class="panel">
-      <span class="eyebrow">Avant d'entrer</span>
-      <p class="oath" id="pos-oath"></p>
+  <div class="grid2">
+    <div class="screen">
+      <div class="card">
+        <div class="card-head"><h2>Actif</h2><span class="tag" id="t-asset-class">Forex</span></div>
+        <div class="chips" id="t-recent"></div>
+        <button type="button" class="assetbtn" id="t-asset-open"><span class="tk" id="t-asset-tk">EURUSD</span><span class="nm" id="t-asset-nm">Euro / Dollar US</span><span class="note">Changer ›</span></button>
+        <div class="seg dir" id="t-dir"><button type="button" data-v="long" aria-pressed="true">▲ Achat</button><button type="button" data-v="short" aria-pressed="false">▼ Vente</button></div>
+        <div class="row two">
+          <div class="field"><label for="t-entry">Entrée</label><input id="t-entry" type="number" inputmode="decimal" step="any"></div>
+          <div class="field"><label for="t-wr">Win rate estimé</label><div class="unit"><input id="t-wr" type="number" inputmode="decimal" step="1" min="1" max="99"><span>%</span></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Stop loss</h2><span class="note" id="t-sl-note"></span></div>
+        <div class="row two">
+          <div class="field"><label for="t-sl">Prix du stop</label><input id="t-sl" type="number" inputmode="decimal" step="any"></div>
+          <div class="field"><label for="t-sldist" id="t-sldist-lbl">Distance</label><div class="unit"><input id="t-sldist" type="number" inputmode="decimal" step="any" min="0"><span id="t-sldist-u">pips</span></div></div>
+        </div>
+        <div class="slider">
+          <div class="top"><label class="lbl" for="t-risk">Risque sur ce trade</label><b id="t-risk-val">1,00 % · 100 $</b></div>
+          <input id="t-risk" type="range" min="0.1" max="5" step="0.05">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Take profit</h2><button type="button" class="ghost" id="t-tp-add">+ TP</button></div>
+        <div class="tphead"><span></span><span>Prix</span><span>R</span><span>Part %</span><span></span></div>
+        <div id="t-tps" style="display:flex;flex-direction:column;gap:8px"></div>
+        <div class="quick" id="t-tp-quick"><span class="lbl" style="align-self:center">TP1 à</span><button type="button" data-r="1">1R</button><button type="button" data-r="1.5">1,5R</button><button type="button" data-r="2">2R</button><button type="button" data-r="3">3R</button><button type="button" data-r="4">4R</button></div>
+        <label class="lbl" style="display:flex;gap:8px;align-items:center"><input id="t-be" type="checkbox" style="width:auto;accent-color:var(--accent)"> Stop au point mort après TP1</label>
+      </div>
+
+      <div class="card">
+        <h2>Coûts</h2>
+        <div class="row two">
+          <div class="field"><label for="t-spread" id="t-spread-lbl">Spread</label><div class="unit"><input id="t-spread" type="number" inputmode="decimal" step="any" min="0"><span id="t-spread-u">pips</span></div></div>
+          <div class="field"><label for="t-comm" id="t-comm-lbl">Commission / lot A/R</label><div class="unit"><input id="t-comm" type="number" inputmode="decimal" step="any" min="0"><span>$</span></div></div>
+        </div>
+      </div>
     </div>
-    <div class="kpis" id="pos-kpis"></div>
-    <div class="panel">
-      <h2>Échelle du trade en R</h2>
-      <p class="note">1R = ce que vous perdez si le stop est touché. Chaque palier montre le prix et le résultat. C'est la grille qui vous dit quoi ne pas faire : sortir à +0,5R quand le plan dit +2,5R.</p>
-      <div class="tablebox"><table id="pos-ladder"></table></div>
+
+    <div class="screen">
+      <div class="card">
+        <h2>Le trade en R</h2>
+        <svg class="ladder" id="t-ladder" role="img" aria-label="Position du stop, de l'entrée et des objectifs"></svg>
+        <div class="kv" id="t-kv"></div>
+      </div>
+      <div class="card">
+        <h2>Selon le scénario</h2>
+        <div class="tablebox"><table id="t-scen"></table></div>
+      </div>
+      <div class="card">
+        <span class="eyebrow">Avant d'entrer</span>
+        <p class="oath" id="t-oath"></p>
+        <button type="button" class="primary" id="t-go-sim">Simuler 200 trades comme celui-ci</button>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- ============ SIMULATION ============ -->
-<section class="view" id="view-simulation" hidden>
-  <form class="panel" id="f-sim" autocomplete="off">
-    <h2>Le scénario</h2>
-    <div class="field">
-      <span class="eyebrow">Profils</span>
-      <div class="chips" id="sim-presets">
-        <button type="button" data-p="0.5">Prudent 0,5 %</button>
-        <button type="button" data-p="1">Standard 1 %</button>
-        <button type="button" data-p="2">Agressif 2 %</button>
-        <button type="button" data-p="5">Casino 5 %</button>
+<!-- =================== JOUR =================== -->
+<section class="screen" id="view-jour" hidden>
+  <div class="card">
+    <div class="card-head"><h2 id="j-title">Aujourd'hui</h2><span class="note" id="j-date"></span></div>
+    <div class="rings">
+      <div class="ring" id="r-day"><div class="dial"><svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="42"/><circle class="arc" cx="50" cy="50" r="42"/></svg><div class="in"><span class="c">—</span><span class="cs"></span></div></div><span class="lb">Perte max du jour</span></div>
+      <div class="ring" id="r-ntr"><div class="dial"><svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="42"/><circle class="arc" cx="50" cy="50" r="42"/></svg><div class="in"><span class="c">—</span><span class="cs"></span></div></div><span class="lb">Trades</span></div>
+      <div class="ring" id="r-streak"><div class="dial"><svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="42"/><circle class="arc" cx="50" cy="50" r="42"/></svg><div class="in"><span class="c">—</span><span class="cs"></span></div></div><span class="lb">Pertes d'affilée</span></div>
+    </div>
+    <div id="j-alert"></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h2>Enregistrer un résultat</h2>
+      <p class="note" id="j-r-note">1R = 100 $ (votre risque par défaut).</p>
+      <div class="row three">
+        <button type="button" class="lose" id="j-loss">Stop −1R</button>
+        <button type="button" id="j-be">Point mort</button>
+        <button type="button" class="win" id="j-win">Gain +2R</button>
+      </div>
+      <div class="row two">
+        <div class="field"><label for="j-custom">Autre résultat</label><div class="unit"><input id="j-custom" type="number" inputmode="decimal" step="0.1" placeholder="ex. 1,4 ou −0,5"><span>R</span></div></div>
+        <div class="field"><label for="j-note">Note</label><input id="j-note" type="text" maxlength="60" placeholder="ex. sorti avant TP" style="font-family:var(--f-body)"></div>
+      </div>
+      <button type="button" class="primary" id="j-add">Ajouter</button>
+      <div class="streakbar" id="j-strip" aria-label="Résultats du jour dans l'ordre"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Journal du jour</h2><span class="note" id="j-sum"></span></div>
+      <div class="log" id="j-log"></div>
+      <div class="kv" id="j-stats"></div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== SIMULER =================== -->
+<section class="screen" id="view-simuler" hidden>
+  <div class="card">
+    <div class="rings">
+      <div class="ring" id="r-surv"><div class="dial"><svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="42"/><circle class="arc" cx="50" cy="50" r="42"/></svg><div class="in"><span class="c">—</span><span class="cs"></span></div></div><span class="lb">Survie</span></div>
+      <div class="ring" id="r-prof"><div class="dial"><svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="42"/><circle class="arc" cx="50" cy="50" r="42"/></svg><div class="in"><span class="c">—</span><span class="cs"></span></div></div><span class="lb">Fini gagnant</span></div>
+      <div class="ring" id="r-dd"><div class="dial"><svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="42"/><circle class="arc" cx="50" cy="50" r="42"/></svg><div class="in"><span class="c">—</span><span class="cs"></span></div></div><span class="lb">Drawdown typique</span></div>
+    </div>
+    <div id="s-alert"></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-head"><h2>Scénario</h2><button type="button" class="ghost" id="s-mine">Mes stats du journal</button></div>
+      <div class="chips" id="s-presets">
+        <button type="button" data-p="0.5">Prudent 0,5 %</button><button type="button" data-p="1">Standard 1 %</button><button type="button" data-p="2">Agressif 2 %</button><button type="button" data-p="5">Casino 5 %</button>
+      </div>
+      <div class="slider"><div class="top"><label class="lbl" for="s-risk">Risque par trade</label><b id="s-risk-v"></b></div><input id="s-risk" type="range" min="0.1" max="10" step="0.1"></div>
+      <div class="slider"><div class="top"><label class="lbl" for="s-wr">Win rate</label><b id="s-wr-v"></b></div><input id="s-wr" type="range" min="10" max="90" step="1"></div>
+      <div class="slider"><div class="top"><label class="lbl" for="s-rr">R:R moyen</label><b id="s-rr-v"></b></div><input id="s-rr" type="range" min="0.3" max="6" step="0.1"></div>
+      <div class="row">
+        <div class="field"><label for="s-n">Trades</label><input id="s-n" type="number" inputmode="numeric" min="10" max="1000" step="10"></div>
+        <div class="field"><label for="s-ruin">« Mort » à −</label><div class="unit"><input id="s-ruin" type="number" inputmode="numeric" min="5" max="95"><span>%</span></div></div>
+        <div class="field"><label for="s-sd">Incertitude WR</label><div class="unit"><input id="s-sd" type="number" inputmode="numeric" min="0" max="20"><span>pts</span></div></div>
+      </div>
+      <div class="field"><label for="s-mode">Taille du risque</label><select id="s-mode"><option value="pct">% du capital du moment</option><option value="fixed">Montant fixe ($ du départ)</option></select></div>
+      <div class="kv" id="s-kv"></div>
+    </div>
+    <div class="screen">
+      <div class="card">
+        <div class="card-head"><h2>Trajectoires du capital</h2><button type="button" class="ghost" id="s-run">↻ Relancer</button></div>
+        <canvas class="chart" id="s-chart" role="img" aria-label="Éventail des trajectoires du capital"></canvas>
+        <div class="legend"><span><i style="background:var(--accent);opacity:.2"></i>5–95 %</span><span><i style="background:var(--accent);opacity:.45"></i>25–75 %</span><span><i style="background:var(--accent)"></i>Médiane</span><span><i style="background:var(--muted)"></i>Parcours réels</span><span><i style="background:var(--loss)"></i>Seuil « mort »</span></div>
+      </div>
+      <div class="card">
+        <h2>Pire série de pertes</h2>
+        <p class="note" id="s-streak-note"></p>
+        <canvas class="chart small" id="s-streak" role="img" aria-label="Distribution de la plus longue série de pertes"></canvas>
       </div>
     </div>
-    <div class="field"><label for="sim-capital">Capital de départ</label><div class="unit"><input id="sim-capital" type="number" step="any" min="1" value="10000"><span>$</span></div></div>
-    <div class="row2">
-      <div class="field"><label for="sim-risk">Risque / trade</label><div class="unit"><input id="sim-risk" type="number" step="0.1" min="0.01" value="1"><span>%</span></div></div>
-      <div class="field"><label for="sim-rr">RR moyen</label><div class="unit"><input id="sim-rr" type="number" step="0.1" min="0.1" value="2"><span>R</span></div></div>
-    </div>
-    <div class="row2">
-      <div class="field"><label for="sim-wr">Win rate</label><div class="unit"><input id="sim-wr" type="number" step="1" min="1" max="99" value="40"><span>%</span></div></div>
-      <div class="field"><label for="sim-trades">Nombre de trades</label><input id="sim-trades" type="number" step="10" min="10" max="1000" value="200"></div>
-    </div>
-    <div class="row2">
-      <div class="field"><label for="sim-ruin">« Mort » à −</label><div class="unit"><input id="sim-ruin" type="number" step="1" min="5" max="95" value="30"><span>%</span></div></div>
-      <div class="field"><label for="sim-runs">Simulations</label><select id="sim-runs"><option>500</option><option selected>2000</option><option>5000</option></select></div>
-    </div>
-    <div class="field">
-      <label for="sim-mode">Taille du risque</label>
-      <select id="sim-mode">
-        <option value="pct">% du capital du moment (se réduit en drawdown)</option>
-        <option value="fixed">Montant fixe en $ (calculé sur le départ)</option>
-      </select>
-    </div>
-    <div class="field">
-      <label for="sim-wrsd">Incertitude sur le win rate</label>
-      <div class="unit"><input id="sim-wrsd" type="number" step="1" min="0" max="20" value="5"><span>pts</span></div>
-      <span class="hint">Votre vrai win rate n'est jamais connu. Chaque simulation tire un win rate autour du vôtre (± cet écart-type).</span>
-    </div>
-    <button type="button" class="primary" id="sim-run">Relancer</button>
-  </form>
+  </div>
+</section>
 
-  <div class="stack">
-    <div class="verdict" id="sim-verdict"></div>
-    <div class="kpis" id="sim-kpis"></div>
-    <div class="panel">
-      <h2>Trajectoires possibles du capital</h2>
-      <canvas class="chart" id="sim-chart" role="img" aria-label="Éventail des trajectoires du capital"></canvas>
-      <div class="legend">
-        <span><i style="background:var(--accent);opacity:.18"></i>5 % – 95 % des cas</span>
-        <span><i style="background:var(--accent);opacity:.38"></i>25 % – 75 %</span>
-        <span><i style="background:var(--accent)"></i>Médiane</span>
-        <span><i style="background:var(--muted)"></i>Quelques parcours réels</span>
-        <span><i style="background:var(--loss)"></i>Seuil « mort »</span>
+<!-- =================== MENTAL =================== -->
+<section class="screen" id="view-mental" hidden>
+  <div class="card">
+    <div class="rings">
+      <div class="ring" id="r-plan"><div class="dial"><svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="42"/><circle class="arc" cx="50" cy="50" r="42"/></svg><div class="in"><span class="c">—</span><span class="cs"></span></div></div><span class="lb">Avantage gardé</span></div>
+      <div class="ring" id="r-run8"><div class="dial"><svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="42"/><circle class="arc" cx="50" cy="50" r="42"/></svg><div class="in"><span class="c">—</span><span class="cs"></span></div></div><span class="lb" id="r-run8-lb">Série de 8 pertes</span></div>
+      <div class="ring" id="r-cost"><div class="dial"><svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="42"/><circle class="arc" cx="50" cy="50" r="42"/></svg><div class="in"><span class="c">—</span><span class="cs"></span></div></div><span class="lb">Coût de la pire série</span></div>
+    </div>
+    <div id="m-alert"></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h2>Le plan contre la réalité</h2>
+      <div class="row two">
+        <div class="field"><label for="m-cut">Gagnants coupés tôt</label><div class="unit"><input id="m-cut" type="number" inputmode="numeric" min="0" max="100" step="5"><span>%</span></div></div>
+        <div class="field"><label for="m-cutr">Sortie moyenne alors</label><div class="unit"><input id="m-cutr" type="number" inputmode="decimal" min="0" step="0.1"><span>R</span></div></div>
+        <div class="field"><label for="m-move">Stops élargis</label><div class="unit"><input id="m-move" type="number" inputmode="numeric" min="0" max="100" step="5"><span>%</span></div></div>
+        <div class="field"><label for="m-mover">Perte moyenne alors</label><div class="unit"><input id="m-mover" type="number" inputmode="decimal" min="1" step="0.1"><span>R</span></div></div>
+      </div>
+      <p class="note">Win rate, R:R et valeur de 1R viennent de l'écran Simuler et de vos réglages. Résultat sur 100 trades :</p>
+      <div class="bars" id="m-bars"></div>
+    </div>
+    <div class="card">
+      <h2>Les séries arrivent, même quand tout va bien</h2>
+      <p class="note" id="m-series-note"></p>
+      <div class="tablebox"><table id="m-series"></table></div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h2>Ce qu'il reste après N pertes d'affilée</h2>
+      <p class="note">Perte cumulée et gain nécessaire pour revenir. Votre risque est surligné.</p>
+      <div class="tablebox"><table id="m-dd"></table></div>
+    </div>
+    <div class="card">
+      <h2>Mes règles</h2>
+      <ol class="rules" id="m-rules"></ol>
+    </div>
+  </div>
+</section>
+
+<!-- =================== REGLAGES =================== -->
+<section class="screen" id="view-reglages" hidden>
+  <div class="grid2">
+    <div class="screen">
+      <div class="card">
+        <h2>Compte</h2>
+        <div class="row two">
+          <div class="field"><label for="g-capital">Capital</label><div class="unit"><input id="g-capital" data-set="capital" type="number" inputmode="decimal" min="0" step="any"><span>$</span></div></div>
+          <div class="field"><label for="g-risk">Risque par défaut</label><div class="unit"><input id="g-risk" data-set="riskPct" type="number" inputmode="decimal" min="0.01" step="0.05"><span>%</span></div></div>
+          <div class="field"><label for="g-wr">Win rate estimé</label><div class="unit"><input id="g-wr" data-set="winRate" type="number" inputmode="decimal" min="1" max="99" step="1"><span>%</span></div></div>
+          <div class="field"><label for="g-rrmin">R:R minimum</label><div class="unit"><input id="g-rrmin" data-set="minRR" type="number" inputmode="decimal" min="0" step="0.1"><span>R</span></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Limites (coupe-circuit)</h2>
+        <div class="row two">
+          <div class="field"><label for="g-maxrisk">Risque max / trade</label><div class="unit"><input id="g-maxrisk" data-set="maxRiskPct" type="number" inputmode="decimal" min="0.1" step="0.1"><span>%</span></div></div>
+          <div class="field"><label for="g-daily">Perte max / jour</label><div class="unit"><input id="g-daily" data-set="dailyLossPct" type="number" inputmode="decimal" min="0.1" step="0.5"><span>%</span></div></div>
+          <div class="field"><label for="g-maxtr">Trades max / jour</label><input id="g-maxtr" data-set="maxTrades" type="number" inputmode="numeric" min="1" step="1"></div>
+          <div class="field"><label for="g-maxls">Pertes d'affilée max</label><input id="g-maxls" data-set="maxLossStreak" type="number" inputmode="numeric" min="1" step="1"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Levier par classe d'actif</h2>
+        <div class="row three" id="g-lev"></div>
+      </div>
+      <div class="card">
+        <h2>Apparence</h2>
+        <div class="seg" id="g-theme"><button type="button" data-v="auto">Auto</button><button type="button" data-v="dark">Sombre</button><button type="button" data-v="light">Clair</button></div>
       </div>
     </div>
-    <div class="panel">
-      <h2>Plus longue série de pertes par simulation</h2>
-      <p class="note" id="sim-streaknote"></p>
-      <canvas class="chart small" id="sim-streak" role="img" aria-label="Distribution de la plus longue série de pertes"></canvas>
+    <div class="screen">
+      <div class="card">
+        <h2>Taux de change (1 unité = x $)</h2>
+        <p class="note">Sert à convertir la valeur du pip pour les paires croisées et les actifs cotés hors dollar. Les paires USD/xxx se convertissent avec leur propre prix.</p>
+        <div class="row three" id="g-rates"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Actif personnalisé</h2></div>
+        <div class="row two">
+          <div class="field"><label for="c-id">Symbole</label><input id="c-id" type="text" maxlength="12" placeholder="ex. AAPL" style="font-family:var(--f-body)"></div>
+          <div class="field"><label for="c-cls">Classe</label><select id="c-cls"></select></div>
+          <div class="field"><label for="c-cs">Taille du contrat (par lot)</label><input id="c-cs" type="number" inputmode="decimal" step="any" value="1"></div>
+          <div class="field"><label for="c-pip">Taille du pip / tick</label><input id="c-pip" type="number" inputmode="decimal" step="any" value="0.01"></div>
+          <div class="field"><label for="c-q">Devise de cotation</label><select id="c-q"></select></div>
+          <div class="field"><label for="c-price">Prix actuel</label><input id="c-price" type="number" inputmode="decimal" step="any" value="100"></div>
+          <div class="field"><label for="c-step">Pas de lot</label><input id="c-step" type="number" inputmode="decimal" step="any" value="1"></div>
+          <div class="field"><label for="c-dec">Décimales du prix</label><input id="c-dec" type="number" inputmode="numeric" min="0" max="6" value="2"></div>
+        </div>
+        <p class="note" id="c-err" hidden></p>
+        <button type="button" class="primary" id="c-add">Ajouter l'actif</button>
+        <div class="log" id="c-list"></div>
+      </div>
+      <div class="card">
+        <h2>Données</h2>
+        <p class="note">Tout est enregistré sur cet appareil uniquement.</p>
+        <div class="confirm" id="g-reset-box"><button type="button" class="danger" id="g-reset">Tout réinitialiser</button></div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- ============ SERIES ============ -->
-<section class="view" id="view-series" hidden>
-  <form class="panel" id="f-ser" autocomplete="off">
-    <h2>Les séries arrivent</h2>
-    <p class="note">Même une stratégie gagnante enchaîne des pertes. La question n'est pas « si » mais « combien d'affilée » et « est-ce que mon risque me laisse en vie ».</p>
-    <div class="row2">
-      <div class="field"><label for="ser-wr">Win rate</label><div class="unit"><input id="ser-wr" type="number" step="1" min="1" max="99" value="40"><span>%</span></div></div>
-      <div class="field"><label for="ser-trades">Sur combien de trades</label><input id="ser-trades" type="number" step="10" min="5" max="5000" value="100"></div>
-    </div>
-    <div class="field"><label for="ser-risk">Mon risque / trade</label><div class="unit"><input id="ser-risk" type="number" step="0.1" min="0.01" value="1"><span>%</span></div></div>
-  </form>
-
-  <div class="stack">
-    <div class="verdict" id="ser-verdict"></div>
-    <div class="panel">
-      <h2>Probabilité de vivre au moins une série de N pertes</h2>
-      <div class="tablebox"><table id="ser-prob"></table></div>
-    </div>
-    <div class="panel">
-      <h2>Ce qu'il reste du capital après N pertes d'affilée</h2>
-      <p class="note">Perte cumulée (risque en % du capital du moment), puis le gain nécessaire pour revenir à zéro. Votre ligne est surlignée.</p>
-      <div class="tablebox"><table id="ser-dd"></table></div>
-    </div>
-  </div>
-</section>
-
-<!-- ============ EMOTIONS ============ -->
-<section class="view" id="view-emotions" hidden>
-  <form class="panel" id="f-emo" autocomplete="off">
-    <h2>Le plan contre la réalité</h2>
-    <div class="row2">
-      <div class="field"><label for="emo-wr">Win rate</label><div class="unit"><input id="emo-wr" type="number" step="1" min="1" max="99" value="45"><span>%</span></div></div>
-      <div class="field"><label for="emo-rr">RR prévu</label><div class="unit"><input id="emo-rr" type="number" step="0.1" min="0.1" value="2"><span>R</span></div></div>
-    </div>
-    <span class="eyebrow">Couper les gains trop tôt</span>
-    <div class="row2">
-      <div class="field"><label for="emo-cut">Gagnants coupés</label><div class="unit"><input id="emo-cut" type="number" step="5" min="0" max="100" value="40"><span>%</span></div></div>
-      <div class="field"><label for="emo-cutr">Sortie moyenne</label><div class="unit"><input id="emo-cutr" type="number" step="0.1" min="0" value="0.7"><span>R</span></div></div>
-    </div>
-    <span class="eyebrow">Refuser la perte</span>
-    <div class="row2">
-      <div class="field"><label for="emo-move">Stops élargis</label><div class="unit"><input id="emo-move" type="number" step="5" min="0" max="100" value="20"><span>%</span></div></div>
-      <div class="field"><label for="emo-mover">Perte moyenne</label><div class="unit"><input id="emo-mover" type="number" step="0.1" min="1" value="1.8"><span>R</span></div></div>
-    </div>
-    <div class="row2">
-      <div class="field"><label for="emo-trades">Trades</label><input id="emo-trades" type="number" step="10" min="1" value="100"></div>
-      <div class="field"><label for="emo-r">1R vaut</label><div class="unit"><input id="emo-r" type="number" step="any" min="0" value="100"><span>$</span></div></div>
-    </div>
-    <span class="hint">Remplissez avec votre journal : sur vos derniers gagnants, combien avez-vous fermés avant l'objectif ? Sur vos perdants, combien de fois avez-vous reculé le stop ?</span>
-  </form>
-
-  <div class="stack">
-    <div class="verdict" id="emo-verdict"></div>
-    <div class="kpis" id="emo-kpis"></div>
-    <div class="panel">
-      <h2>Où part l'argent, sur <span id="emo-n">100</span> trades</h2>
-      <div class="bars" id="emo-bars"></div>
-    </div>
-  </div>
-</section>
-
+<footer class="disc">Outil d'éducation et de simulation, pas un conseil financier. Les probabilités supposent des trades indépendants.</footer>
 </div>
 </main>
-<footer><div class="wrap">Outil d'éducation et de simulation. Ce n'est pas un conseil financier. Les probabilités supposent des trades indépendants ; les marchés réels ont des régimes qui allongent les séries.</div></footer>
+
+<dialog id="dlg-asset">
+  <div class="dlg-head"><h2>Choisir un actif</h2><button type="button" class="ghost" id="dlg-close" aria-label="Fermer">✕</button></div>
+  <div class="field" style="margin-bottom:10px"><input id="dlg-q" type="search" placeholder="Rechercher : EUR, or, NQ…" style="font-family:var(--f-body)"></div>
+  <div class="chips" id="dlg-cls" style="margin-bottom:8px"></div>
+  <div class="list-assets" id="dlg-list"></div>
+</dialog>
 
 <script>
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
-  var fmtCache = {};
-  function nf(d) { return fmtCache[d] || (fmtCache[d] = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d })); }
-  function money(x, d) { if (!isFinite(x)) return "—"; d = d == null ? 2 : d; return (x < 0 ? "−" : "") + nf(d).format(Math.abs(x)) + " $"; }
+  var NF = {};
+  function nf(d) { return NF[d] || (NF[d] = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d })); }
+  function fx(x, d) { return isFinite(x) ? (x < 0 ? "−" : "") + nf(d).format(Math.abs(x)) : "—"; }
+  function money(x, d) { if (!isFinite(x)) return "—"; if (d == null) d = Math.abs(x) >= 1000 ? 0 : 2; return fx(x, d) + " $"; }
   function smoney(x, d) { return (x > 0 ? "+" : "") + money(x, d); }
-  function pct(x, d) { if (!isFinite(x)) return "—"; d = d == null ? 1 : d; return (x < 0 ? "−" : "") + nf(d).format(Math.abs(x)) + " %"; }
+  function pct(x, d) { return isFinite(x) ? fx(x, d == null ? 1 : d) + " %" : "—"; }
   function spct(x, d) { return (x > 0 ? "+" : "") + pct(x, d); }
-  function rr(x, d) { if (!isFinite(x)) return "—"; d = d == null ? 2 : d; return (x < 0 ? "−" : (x > 0 ? "+" : "")) + nf(d).format(Math.abs(x)) + " R"; }
-  function num(id) { var v = parseFloat(String($(id).value).replace(",", ".")); return isFinite(v) ? v : NaN; }
+  function R(x, d) { return isFinite(x) ? (x > 0 ? "+" : "") + fx(x, d == null ? 2 : d) + "R" : "—"; }
   function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
-  function kpi(label, value, sub, cls) {
-    return '<div class="kpi ' + (cls || "") + '"><span class="k">' + label + '</span><span class="v">' + value + '</span>' + (sub ? '<span class="s">' + sub + "</span>" : "") + "</div>";
-  }
-  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function val(id) { var v = parseFloat(String($(id).value).replace(",", ".").replace("−", "-")); return isFinite(v) ? v : NaN; }
+  function css(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 
-  // ---------- storage (best effort) ----------
-  var KEY = "rester-vivant-v1";
-  function save() {
-    try {
-      var data = {};
-      document.querySelectorAll("form input, form select").forEach(function (el) { data[el.id] = el.value; });
-      localStorage.setItem(KEY, JSON.stringify(data));
-    } catch (e) {}
-  }
-  function load() {
-    try {
-      var data = JSON.parse(localStorage.getItem(KEY) || "{}");
-      Object.keys(data).forEach(function (id) { var el = $(id); if (el) el.value = data[id]; });
-    } catch (e) {}
+  // ---------- instruments ----------
+  var CLASSES = { fx: "Forex", metal: "Métaux", idx: "Indices CFD", crypto: "Crypto", fut: "Futures", stock: "Actions" };
+  var UNIT = { fx: "pips", metal: "pips", idx: "points", crypto: "points", fut: "ticks", stock: "cents" };
+  var LOTW = { fx: "lot", metal: "lot", idx: "lot", crypto: "lot", fut: "contrat", stock: "action" };
+  function A(id, name, cls, cs, pip, quote, dec, price, step, min) { return { id: id, name: name, cls: cls, cs: cs, pip: pip, quote: quote, dec: dec, price: price, step: step, min: min }; }
+  var BASE_ASSETS = [
+    A("EURUSD", "Euro / Dollar US", "fx", 100000, 0.0001, "USD", 5, 1.085, 0.01, 0.01),
+    A("GBPUSD", "Livre / Dollar US", "fx", 100000, 0.0001, "USD", 5, 1.27, 0.01, 0.01),
+    A("USDJPY", "Dollar US / Yen", "fx", 100000, 0.01, "JPY", 3, 150, 0.01, 0.01),
+    A("USDCHF", "Dollar US / Franc suisse", "fx", 100000, 0.0001, "CHF", 5, 0.88, 0.01, 0.01),
+    A("USDCAD", "Dollar US / Dollar canadien", "fx", 100000, 0.0001, "CAD", 5, 1.36, 0.01, 0.01),
+    A("AUDUSD", "Dollar australien / Dollar US", "fx", 100000, 0.0001, "USD", 5, 0.66, 0.01, 0.01),
+    A("NZDUSD", "Dollar néo-zélandais / Dollar US", "fx", 100000, 0.0001, "USD", 5, 0.6, 0.01, 0.01),
+    A("EURJPY", "Euro / Yen", "fx", 100000, 0.01, "JPY", 3, 162, 0.01, 0.01),
+    A("GBPJPY", "Livre / Yen", "fx", 100000, 0.01, "JPY", 3, 190, 0.01, 0.01),
+    A("EURGBP", "Euro / Livre", "fx", 100000, 0.0001, "GBP", 5, 0.85, 0.01, 0.01),
+    A("XAUUSD", "Or (100 oz par lot)", "metal", 100, 0.1, "USD", 2, 4000, 0.01, 0.01),
+    A("XAGUSD", "Argent (5 000 oz par lot)", "metal", 5000, 0.01, "USD", 3, 50, 0.01, 0.01),
+    A("US30", "Dow Jones (1 $/pt par lot)", "idx", 1, 1, "USD", 1, 47000, 0.01, 0.01),
+    A("NAS100", "Nasdaq 100 (1 $/pt par lot)", "idx", 1, 1, "USD", 1, 25000, 0.01, 0.01),
+    A("SPX500", "S&P 500 (1 $/pt par lot)", "idx", 1, 1, "USD", 1, 6700, 0.01, 0.01),
+    A("GER40", "DAX (1 €/pt par lot)", "idx", 1, 1, "EUR", 1, 24000, 0.01, 0.01),
+    A("BTCUSD", "Bitcoin", "crypto", 1, 1, "USD", 2, 95000, 0.001, 0.001),
+    A("ETHUSD", "Ethereum", "crypto", 1, 1, "USD", 2, 3500, 0.01, 0.01),
+    A("ES", "E-mini S&P 500 (50 $/pt)", "fut", 50, 0.25, "USD", 2, 6700, 1, 1),
+    A("MES", "Micro S&P 500 (5 $/pt)", "fut", 5, 0.25, "USD", 2, 6700, 1, 1),
+    A("NQ", "E-mini Nasdaq (20 $/pt)", "fut", 20, 0.25, "USD", 2, 25000, 1, 1),
+    A("MNQ", "Micro Nasdaq (2 $/pt)", "fut", 2, 0.25, "USD", 2, 25000, 1, 1),
+    A("YM", "E-mini Dow (5 $/pt)", "fut", 5, 1, "USD", 0, 47000, 1, 1),
+    A("MYM", "Micro Dow (0,50 $/pt)", "fut", 0.5, 1, "USD", 0, 47000, 1, 1),
+    A("CL", "Pétrole WTI (1 000 $/pt)", "fut", 1000, 0.01, "USD", 2, 70, 1, 1),
+    A("MCL", "Micro WTI (100 $/pt)", "fut", 100, 0.01, "USD", 2, 70, 1, 1),
+    A("GC", "Or COMEX (100 $/pt)", "fut", 100, 0.1, "USD", 1, 4000, 1, 1),
+    A("MGC", "Micro Or (10 $/pt)", "fut", 10, 0.1, "USD", 1, 4000, 1, 1),
+    A("STOCK", "Action US (générique)", "stock", 1, 0.01, "USD", 2, 100, 1, 1)
+  ];
+  var CURR = ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD"];
+
+  // ---------- state ----------
+  var KEY = "rester-vivant-v2";
+  var DEFAULTS = {
+    settings: { capital: 10000, riskPct: 1, maxRiskPct: 2, dailyLossPct: 3, maxTrades: 5, maxLossStreak: 3, winRate: 45, minRR: 1.5,
+      lev: { fx: 30, metal: 20, idx: 20, crypto: 2, fut: 20, stock: 5 }, rates: { EUR: 1.08, GBP: 1.27, JPY: 0.0067, CHF: 1.13, CAD: 0.73, AUD: 0.66 }, theme: "auto" },
+    trade: { asset: "EURUSD", dir: "long", entry: 1.085, sl: 1.083, riskPct: 1, wr: 45, tps: [{ price: 1.09, pct: 100 }], be: false, spread: 0.5, comm: 7, recent: ["EURUSD", "XAUUSD", "NAS100", "BTCUSD", "ES"] },
+    sim: { risk: 1, wr: 45, rr: 2, n: 200, ruin: 30, sd: 5, mode: "pct" },
+    emo: { cut: 40, cutr: 0.7, move: 20, mover: 1.8 },
+    custom: [], journal: []
+  };
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function merge(d, s) { if (!s || typeof s !== "object" || Array.isArray(d)) return s === undefined ? d : s; var o = {}; Object.keys(d).forEach(function (k) { o[k] = merge(d[k], s[k]); }); return o; }
+  var S = clone(DEFAULTS);
+  try { var raw = localStorage.getItem(KEY); if (raw) S = merge(clone(DEFAULTS), JSON.parse(raw)); } catch (e) {}
+  var saveT = null;
+  function save() { clearTimeout(saveT); saveT = setTimeout(function () { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }, 150); }
+  function assets() { return BASE_ASSETS.concat(S.custom); }
+  function asset(id) { var l = assets(); for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return BASE_ASSETS[0]; }
+
+  // ---------- theme ----------
+  function applyTheme() {
+    var t = S.settings.theme;
+    if (t === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t);
+    document.querySelectorAll("#g-theme button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.v === t)); });
+    var m = document.querySelector('meta[name="theme-color"]'); if (m) setTimeout(function () { m.setAttribute("content", css("--bg")); }, 0);
   }
 
-  // ---------- probability: at least one run of >= k losses in n trades ----------
+  // ---------- rings ----------
+  var CIRC = 2 * Math.PI * 42;
+  function setRing(id, frac, tone, center, sub, marker) {
+    var el = $(id); if (!el) return;
+    frac = clamp(isFinite(frac) ? frac : 0, 0, 1);
+    el.querySelector(".arc").setAttribute("stroke-dasharray", (frac * CIRC).toFixed(2) + " " + CIRC.toFixed(2));
+    el.dataset.tone = tone || "";
+    el.querySelector(".c").textContent = center;
+    el.querySelector(".cs").textContent = sub || "";
+    var mk = el.querySelector(".mk");
+    if (mk) mk.style.transform = "rotate(" + (clamp(marker || 0, 0, 1) * 360) + "deg)";
+  }
+  function alertBox(id, tone, title, body) {
+    $(id).innerHTML = title ? '<div class="alert ' + tone + '"><strong>' + title + "</strong>" + (body ? "<p>" + body + "</p>" : "") + "</div>" : "";
+  }
+
+  // ---------- math ----------
   function probRun(n, q, k) {
-    if (k <= 0) return 1;
-    if (k > n) return 0;
-    var a = new Float64Array(k); a[0] = 1; var hit = 0;
+    if (k <= 0) return 1; if (k > n) return 0;
+    var a = new Float64Array(k); a[0] = 1; var hit = 0, p = 1 - q;
     for (var t = 0; t < n; t++) {
-      var b = new Float64Array(k), p = 1 - q;
-      for (var j = 0; j < k; j++) {
-        if (!a[j]) continue;
-        b[0] += a[j] * p;
-        if (j + 1 >= k) hit += a[j] * q; else b[j + 1] += a[j] * q;
-      }
+      var b = new Float64Array(k);
+      for (var j = 0; j < k; j++) { var v = a[j]; if (!v) continue; b[0] += v * p; if (j + 1 >= k) hit += v * q; else b[j + 1] += v * q; }
       a = b;
     }
     return hit;
   }
-  function expectedLongest(n, q) {
-    // E[max run] = sum_k P(run >= k)
-    var s = 0;
-    for (var k = 1; k <= n; k++) { var p = probRun(n, q, k); s += p; if (p < 1e-6) break; }
-    return s;
+  function expectedLongest(n, q) { var s = 0; for (var k = 1; k <= n; k++) { var p = probRun(n, q, k); s += p; if (p < 1e-5) break; } return s; }
+
+  // ---------- journal helpers ----------
+  function dayKey(d) { d = d || new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function today() { var k = dayKey(); return S.journal.filter(function (e) { return e.day === k; }); }
+  function oneR() { return S.settings.capital * S.settings.riskPct / 100; }
+  function dayState() {
+    var t = today(), st = S.settings, pl = 0, streak = 0;
+    t.forEach(function (e) { pl += e.usd; });
+    for (var i = t.length - 1; i >= 0; i--) { if (t[i].r < 0) streak++; else break; }
+    var limit = st.capital * st.dailyLossPct / 100, lossUsed = Math.max(0, -pl);
+    var stop = lossUsed >= limit - 1e-9 || t.length >= st.maxTrades || streak >= st.maxLossStreak;
+    var reason = lossUsed >= limit - 1e-9 ? "Perte maximale du jour atteinte" : (streak >= st.maxLossStreak ? st.maxLossStreak + " pertes d'affilée" : (t.length >= st.maxTrades ? "Nombre maximum de trades atteint" : ""));
+    var warn = !stop && (lossUsed >= limit * 0.6 || streak === st.maxLossStreak - 1);
+    return { list: t, pl: pl, streak: streak, limit: limit, lossUsed: lossUsed, stop: stop, warn: warn, reason: reason, room: limit - lossUsed };
+  }
+  function renderHeader() {
+    var d = dayState(), h = $("hdr-status");
+    h.className = "status" + (d.stop ? " bad" : (d.warn ? " mid" : ""));
+    h.textContent = d.stop ? "Stop pour aujourd'hui" : (d.warn ? "Prudence" : "Prêt à trader");
   }
 
-  // =================== POSITION ===================
-  var syncing = false;
-  $("pos-risk").addEventListener("input", function () {
-    if (syncing) return; syncing = true;
-    var c = num("pos-capital"), r = num("pos-risk");
-    if (isFinite(c) && isFinite(r)) $("pos-riskusd").value = +(c * r / 100).toFixed(2);
-    syncing = false;
-  });
-  $("pos-riskusd").addEventListener("input", function () {
-    if (syncing) return; syncing = true;
-    var c = num("pos-capital"), u = num("pos-riskusd");
-    if (isFinite(c) && c > 0 && isFinite(u)) $("pos-risk").value = +(u / c * 100).toFixed(3);
-    syncing = false;
-  });
-  $("pos-capital").addEventListener("input", function () {
-    var c = num("pos-capital"), r = num("pos-risk");
-    if (isFinite(c) && isFinite(r)) $("pos-riskusd").value = +(c * r / 100).toFixed(2);
-  });
-
-  var lastPos = null;
-  function renderPosition() {
-    var cap = num("pos-capital"), riskPct = num("pos-risk"), entry = num("pos-entry"), stop = num("pos-stop"),
-        target = num("pos-target"), wr = num("pos-wr") / 100, fees = num("pos-fees") || 0, dir = $("pos-dir").value;
-    var err = $("pos-err"), msg = "";
-    var sgn = dir === "long" ? 1 : -1;
-    if (!(cap > 0) || !(riskPct > 0)) msg = "Entrez un capital et un risque supérieurs à zéro.";
-    else if (!(entry > 0) || !(stop > 0) || !(target > 0)) msg = "Entrez un prix d'entrée, un stop et un objectif.";
-    else if (dir === "long" && !(stop < entry && target > entry)) msg = "En achat, le stop doit être sous l'entrée et l'objectif au-dessus.";
-    else if (dir === "short" && !(stop > entry && target < entry)) msg = "En vente, le stop doit être au-dessus de l'entrée et l'objectif en dessous.";
-    else if (!(wr > 0 && wr < 1)) msg = "Le win rate doit être entre 1 et 99 %.";
-    err.hidden = !msg; err.textContent = msg;
-    if (msg) { $("pos-kpis").innerHTML = ""; $("pos-ladder").innerHTML = ""; $("pos-oath").textContent = "Complétez le trade pour voir ce que vous acceptez de perdre."; lastPos = null; return; }
-
-    var budget = cap * riskPct / 100;
-    var dist = Math.abs(entry - stop), reach = Math.abs(target - entry);
-    var budgetForPrice = Math.max(0, budget - fees);
-    var qty = Math.floor(budgetForPrice / dist);
-    var lossAtStop = qty * dist + fees;
-    var gainAtTarget = qty * reach - fees;
-    var R = reach / dist;
-    var netR = lossAtStop > 0 ? gainAtTarget / lossAtStop : NaN;
-    var be = isFinite(netR) && netR > 0 ? 1 / (1 + netR) : NaN;
-    var exposure = qty * entry;
-    var ev = wr * gainAtTarget - (1 - wr) * lossAtStop;
-    var p5 = probRun(100, 1 - wr, 5), p8 = probRun(100, 1 - wr, 8);
-
-    if (qty < 1) {
-      err.hidden = false;
-      err.textContent = "Avec " + money(budget) + " de risque, même 1 unité dépasse votre limite (stop à " + money(dist) + " par unité" + (fees ? " + frais" : "") + "). Rapprochez le stop ou ne prenez pas ce trade.";
-      $("pos-kpis").innerHTML = ""; $("pos-ladder").innerHTML = ""; lastPos = null;
-      $("pos-oath").textContent = "Ce trade ne rentre pas dans votre risque. Le refuser fait partie du plan.";
-      return;
+  // =================== TRADE ===================
+  function q2usd(a, entry) {
+    if (a.quote === "USD") return 1;
+    if (a.id.indexOf("USD") === 0 && a.cls === "fx" && entry > 0) return 1 / entry;
+    return S.settings.rates[a.quote] || 1;
+  }
+  function roundTo(x, dec) { var f = Math.pow(10, dec); return Math.round(x * f) / f; }
+  function calcTrade() {
+    var T = S.trade, a = asset(T.asset), st = S.settings, sg = T.dir === "long" ? 1 : -1;
+    var res = { a: a, ok: false, msg: "" };
+    var entry = T.entry, sl = T.sl;
+    if (!(st.capital > 0)) { res.msg = "Indiquez votre capital dans Réglages."; return res; }
+    if (!(entry > 0) || !(sl > 0)) { res.msg = "Indiquez un prix d'entrée et un stop."; return res; }
+    if (sg * (entry - sl) <= 0) { res.msg = T.dir === "long" ? "En achat, le stop doit être sous l'entrée." : "En vente, le stop doit être au-dessus de l'entrée."; return res; }
+    var tps = T.tps.filter(function (t) { return t.price > 0 && t.pct > 0; });
+    for (var i = 0; i < tps.length; i++) if (sg * (tps[i].price - entry) <= 0) { res.msg = "Le TP" + (i + 1) + " doit être " + (T.dir === "long" ? "au-dessus" : "en dessous") + " de l'entrée."; return res; }
+    var pctSum = tps.reduce(function (s, t) { return s + t.pct; }, 0);
+    var q = q2usd(a, entry), dist = Math.abs(entry - sl);
+    var pointVal = a.cs * q;                     // $ per 1.0 price move per lot
+    var spreadCost = (T.spread || 0) * a.pip * pointVal;
+    var perLot = dist * pointVal + spreadCost + (T.comm || 0);
+    var budget = st.capital * T.riskPct / 100;
+    var raw = budget / perLot;
+    var lots = Math.floor(raw / a.step + 1e-9) * a.step;
+    lots = roundTo(lots, 6);
+    res.entry = entry; res.sl = sl; res.dist = dist; res.q = q; res.pointVal = pointVal; res.budget = budget; res.raw = raw; res.tps = tps; res.pctSum = pctSum;
+    res.pipVal = a.pip * pointVal; res.distPips = dist / a.pip;
+    if (lots < a.min - 1e-12) { res.msg = "Même " + fx(a.min, a.step < 1 ? 2 : 0) + " " + LOTW[a.cls] + " dépasse votre risque de " + money(budget) + " (il faudrait " + money(perLot * a.min) + "). Rapprochez le stop, augmentez le risque, ou passez sur un micro-contrat."; res.lots = 0; return res; }
+    res.lots = lots;
+    res.loss = lots * perLot;
+    var fixedCost = lots * (spreadCost + (T.comm || 0));
+    var weights = tps.map(function (t) { return t.pct / Math.max(100, pctSum); });
+    var reachR = tps.map(function (t) { return Math.abs(t.price - entry) / dist; });
+    res.reachR = reachR; res.weights = weights;
+    var gainAll = tps.reduce(function (s, t, i) { return s + lots * weights[i] * Math.abs(t.price - entry) * pointVal; }, 0);
+    var leftover = Math.max(0, 1 - weights.reduce(function (s, w) { return s + w; }, 0)); // part without TP: assumed closed at last TP
+    if (leftover > 0 && tps.length) gainAll += lots * leftover * Math.abs(tps[tps.length - 1].price - entry) * pointVal;
+    res.gain = gainAll - fixedCost;
+    res.rr = res.gain / res.loss;
+    res.notional = lots * a.cs * entry * q;
+    res.margin = res.notional / (st.lev[a.cls] || 1);
+    res.riskPctReal = res.loss / st.capital * 100;
+    // scenarios: first k TPs hit, rest at SL (or BE after TP1)
+    var scen = [{ name: "Stop touché", pl: -res.loss }];
+    for (var k = 1; k <= tps.length; k++) {
+      var pl = 0, done = 0;
+      for (var j = 0; j < k; j++) { pl += lots * weights[j] * Math.abs(tps[j].price - entry) * pointVal; done += weights[j]; }
+      var rest = Math.max(0, 1 - done);
+      if (k === tps.length) { if (rest > 0) pl += lots * rest * Math.abs(tps[k - 1].price - entry) * pointVal; rest = 0; }
+      if (rest > 0 && !T.be) pl -= lots * rest * dist * pointVal;
+      pl -= fixedCost;
+      scen.push({ name: k === tps.length ? (tps.length > 1 ? "Tous les TP touchés" : "TP touché") : "TP" + k + " puis " + (T.be ? "point mort" : "stop"), pl: pl });
     }
+    res.scen = scen;
+    var wr = T.wr / 100; res.wr = wr; res.be = 1 / (1 + Math.max(res.rr, 1e-9));
+    res.ev = wr * res.gain - (1 - wr) * res.loss;
+    res.ok = true;
+    return res;
+  }
 
-    lastPos = { cap: cap, riskPct: riskPct, rr: netR, wr: wr };
-    $("pos-oath").innerHTML = "Si le stop est touché, je perds <b>" + money(lossAtStop) + "</b>, soit <b>" + pct(lossAtStop / cap * 100, 2) +
-      "</b> de mon capital. Je considère cet argent comme déjà dépensé. Je ne recule pas le stop, et je ne sors pas avant <b class=\"g\">" +
-      money(target, target < 10 ? 4 : 2) + "</b> sans raison écrite dans mon plan. Avec " + pct(wr * 100, 0) + " de réussite, " +
-      nf(0).format(Math.round((1 - wr) * 10)) + " trades sur 10 comme celui-ci finissent au stop, et c'est normal.";
-
-    var beCls = wr > be + 0.05 ? "gain" : (wr >= be ? "warn" : "loss");
-    $("pos-kpis").innerHTML =
-      kpi("Taille de position", nf(0).format(qty) + " u.", "Exposition " + money(exposure, 0) + " (" + pct(exposure / cap * 100, 0) + " du capital)") +
-      kpi("Perte au stop", money(-lossAtStop), pct(-lossAtStop / cap * 100, 2) + " du capital", "loss") +
-      kpi("Gain à l'objectif", money(gainAtTarget), spct(gainAtTarget / cap * 100, 2) + " du capital", "gain") +
-      kpi("Ratio R:R net", nf(2).format(netR) + " : 1", "Brut " + nf(2).format(R) + " : 1") +
-      kpi("Win rate minimum", pct(be * 100, 1), "Pour être à l'équilibre. Vous estimez " + pct(wr * 100, 0), beCls) +
-      kpi("Espérance par trade", smoney(ev), "Sur 100 trades : " + smoney(ev * 100, 0), ev > 0 ? "gain" : "loss") +
-      kpi("Série de 5 pertes", pct(p5 * 100, 0), "Chance d'en vivre une sur 100 trades", p5 > 0.5 ? "warn" : "") +
-      kpi("Série de 8 pertes", pct(p8 * 100, 0), "Coûterait " + pct((1 - Math.pow(1 - riskPct / 100, 8)) * 100, 1) + " du capital", p8 > 0.25 ? "warn" : "");
-
-    var steps = [-1, -0.5, 0, 0.5, 1, 2, 3];
-    if (steps.indexOf(Math.round(R * 100) / 100) < 0) steps.push(R);
-    steps.sort(function (a, b) { return a - b; });
-    var dec = entry < 10 ? 4 : 2;
-    var rows = steps.map(function (s) {
-      var price = entry + sgn * s * dist;
-      var pl = qty * s * dist - fees;
-      var label = s === -1 ? "Stop" : (Math.abs(s - R) < 1e-9 ? "Objectif" : (s === 0 ? "Entrée" : ""));
-      var cls = pl > 0 ? "g" : (pl < 0 ? "l" : "");
-      return '<tr' + (label === "Objectif" ? ' class="hl"' : "") + "><td>" + rr(s, 2) + (label ? " · " + label : "") + "</td><td>" + nf(dec).format(price) +
-        '</td><td class="' + cls + '">' + smoney(pl) + '</td><td class="' + cls + '">' + spct(pl / cap * 100, 2) + "</td></tr>";
+  function renderTP() {
+    var T = S.trade, a = asset(T.asset), dist = Math.abs(T.entry - T.sl);
+    $("t-tps").innerHTML = T.tps.map(function (t, i) {
+      var r = dist > 0 && t.price ? Math.abs(t.price - T.entry) / dist * ((T.dir === "long" ? 1 : -1) * (t.price - T.entry) >= 0 ? 1 : -1) : NaN;
+      return '<div class="tp" data-i="' + i + '"><span class="n">TP' + (i + 1) + '</span>' +
+        '<input type="number" inputmode="decimal" step="any" data-k="price" aria-label="Prix TP' + (i + 1) + '" value="' + (t.price ? +t.price.toFixed(a.dec) : "") + '">' +
+        '<input type="number" inputmode="decimal" step="0.1" data-k="r" aria-label="R TP' + (i + 1) + '" value="' + (isFinite(r) ? +r.toFixed(2) : "") + '">' +
+        '<input type="number" inputmode="numeric" step="5" min="0" max="100" data-k="pct" aria-label="Part TP' + (i + 1) + '" value="' + t.pct + '">' +
+        (T.tps.length > 1 ? '<button type="button" class="x" data-k="del" aria-label="Supprimer TP' + (i + 1) + '">×</button>' : "<span></span>") + "</div>";
     }).join("");
-    $("pos-ladder").innerHTML = "<thead><tr><th>Palier</th><th>Prix</th><th>Résultat</th><th>% capital</th></tr></thead><tbody>" + rows + "</tbody>";
+    $("t-tp-add").disabled = T.tps.length >= 3;
+  }
+  function syncTradeInputs() {
+    var T = S.trade, a = asset(T.asset), active = document.activeElement;
+    function setv(id, v) { if ($(id) !== active) $(id).value = v; }
+    setv("t-entry", +(+T.entry).toFixed(a.dec));
+    setv("t-sl", +(+T.sl).toFixed(a.dec));
+    setv("t-sldist", +(Math.abs(T.entry - T.sl) / a.pip).toFixed(1));
+    setv("t-wr", T.wr);
+    setv("t-spread", T.spread);
+    setv("t-comm", T.comm);
+    if ($("t-risk") !== active) $("t-risk").value = T.riskPct;
+    $("t-be").checked = !!T.be;
+    document.querySelectorAll("#t-dir button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.v === T.dir)); });
+    $("t-asset-tk").textContent = a.id; $("t-asset-nm").textContent = a.name; $("t-asset-class").textContent = CLASSES[a.cls];
+    $("t-sldist-u").textContent = UNIT[a.cls]; $("t-spread-u").textContent = UNIT[a.cls];
+    $("t-comm-lbl").textContent = "Commission / " + LOTW[a.cls] + " A/R";
+    $("t-recent").innerHTML = T.recent.map(function (id) { return '<button type="button" data-id="' + esc(id) + '" aria-pressed="' + (id === T.asset) + '">' + esc(id) + "</button>"; }).join("");
+    var tpActive = active && active.closest && active.closest("#t-tps");
+    if (!tpActive) renderTP();
   }
 
-  $("pos-send").addEventListener("click", function () {
-    if (!lastPos) return;
-    $("sim-capital").value = lastPos.cap;
-    $("sim-risk").value = +lastPos.riskPct.toFixed(3);
-    $("sim-rr").value = +lastPos.rr.toFixed(2);
-    $("sim-wr").value = Math.round(lastPos.wr * 100);
-    $("sim-trades").value = 200;
-    save();
-    location.hash = "simulation";
-    runSim();
-  });
-
-  // =================== SIMULATION ===================
-  var simData = null;
-  function randn() { var u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
-  function quantile(sorted, p) { if (!sorted.length) return NaN; var i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo); }
-
-  function runSim() {
-    var cap = num("sim-capital"), risk = num("sim-risk") / 100, R = num("sim-rr"), wr = num("sim-wr") / 100,
-        n = Math.round(clamp(num("sim-trades") || 200, 10, 1000)), runs = parseInt($("sim-runs").value, 10),
-        ruin = clamp(num("sim-ruin") || 30, 5, 95) / 100, mode = $("sim-mode").value, wrsd = clamp(num("sim-wrsd") || 0, 0, 20) / 100;
-    if (!(cap > 0 && risk > 0 && R > 0 && wr > 0 && wr < 1)) {
-      $("sim-verdict").className = "verdict bad";
-      $("sim-verdict").innerHTML = "<strong>Paramètres incomplets</strong><p>Entrez un capital, un risque, un RR et un win rate entre 1 et 99 %.</p>";
+  function renderTrade() {
+    syncTradeInputs();
+    var c = calcTrade(), a = c.a, T = S.trade, st = S.settings;
+    var dirTxt = T.dir === "long" ? "Achat" : "Vente";
+    $("t-asset-line").textContent = a.id + " · " + dirTxt;
+    $("t-risk-val").textContent = pct(T.riskPct, 2) + " · " + money(st.capital * T.riskPct / 100);
+    $("t-sl-note").textContent = isFinite(c.pipVal) ? "1 " + UNIT[a.cls].replace(/s$/, "") + " = " + money(c.pipVal, 2) + " / " + LOTW[a.cls] : "";
+    if (!c.ok || !c.lots) {
+      $("t-size").innerHTML = "0<small>" + LOTW[a.cls] + "</small>";
+      $("t-size-sub").textContent = "Pas de position possible";
+      $("t-loss").textContent = "—"; $("t-gain").textContent = "—";
+      setRing("r-risk", 0, "", "—", ""); setRing("r-rr", 0, "", "—", ""); setRing("r-edge", 0, "", "—", "", 0);
+      alertBox("t-alert", "bad", "Trade refusé", c.msg);
+      $("t-kv").innerHTML = ""; $("t-scen").innerHTML = ""; $("t-ladder").innerHTML = "";
+      $("t-oath").textContent = "Ce trade ne rentre pas dans votre plan. Le refuser fait partie du plan.";
       return;
     }
-    document.querySelectorAll("#sim-presets button").forEach(function (b) { b.setAttribute("aria-pressed", String(Math.abs(parseFloat(b.dataset.p) - risk * 100) < 1e-9)); });
+    var lotDec = a.step >= 1 ? 0 : (a.step >= 0.01 ? 2 : 3);
+    $("t-size").innerHTML = fx(c.lots, lotDec) + "<small>" + LOTW[a.cls] + (c.lots > 1 && a.cls !== "fx" ? "s" : "") + "</small>";
+    $("t-size-sub").textContent = (a.cls === "fut" ? money(c.lots * a.cs, 2) + " par point" : (a.cls === "stock" ? "" : fx(c.lots * a.cs, a.cs * c.lots >= 100 ? 0 : 2) + " unités · ")) + (a.cls === "fut" ? " · " : "") + "notionnel " + money(c.notional, 0) + " · marge " + money(c.margin, 0);
+    $("t-loss").textContent = smoney(-c.loss);
+    $("t-gain").textContent = smoney(c.gain);
 
-    var paths = new Float32Array(runs * (n + 1));
-    var finals = new Float64Array(runs), mdds = new Float64Array(runs), streaks = new Int32Array(runs);
-    var dead = 0, below = 0, fixedRisk = cap * risk;
+    var maxR = st.maxRiskPct, rp = c.riskPctReal;
+    setRing("r-risk", rp / maxR, rp > maxR + 1e-9 ? "bad" : (rp > maxR * 0.75 ? "mid" : "good"), pct(rp, 2), money(c.loss) + " / max " + pct(maxR, 1));
+    setRing("r-rr", c.rr / 4, c.rr < st.minRR ? (c.rr < 1 ? "bad" : "mid") : "good", fx(c.rr, 2), c.rr < st.minRR ? "min " + fx(st.minRR, 1) : "net de frais");
+    var margin = c.wr - c.be;
+    setRing("r-edge", c.be, margin > 0.05 ? "good" : (margin >= 0 ? "mid" : "bad"), pct(c.be * 100, 0), "vous : " + pct(c.wr * 100, 0), c.wr);
+
+    var notes = [];
+    if (rp > maxR + 1e-9) alertBox("t-alert", "bad", "Risque au-dessus de votre limite", "Vous risquez " + pct(rp, 2) + " pour une limite de " + pct(maxR, 1) + ". Baissez le curseur de risque.");
+    else if (dayState().stop) alertBox("t-alert", "bad", "Stop pour aujourd'hui", dayState().reason + ". Le meilleur trade maintenant, c'est aucun trade.");
+    else if (c.loss > dayState().room + 1e-9) alertBox("t-alert", "mid", "Ce trade dépasse ce qu'il reste pour la journée", "Il vous reste " + money(dayState().room) + " avant la perte max du jour.");
+    else if (c.rr < st.minRR) alertBox("t-alert", "mid", "R:R sous votre minimum", "R:R net de " + fx(c.rr, 2) + " pour un minimum de " + fx(st.minRR, 1) + ". Éloignez l'objectif ou passez votre tour.");
+    else if (c.ev <= 0) alertBox("t-alert", "mid", "Espérance négative", "Avec " + pct(c.wr * 100, 0) + " de réussite, il faut au moins " + pct(c.be * 100, 0) + " pour ce R:R.");
+    else alertBox("t-alert", "good", "Trade dans les règles", "Espérance " + smoney(c.ev) + " par trade. Placez le SL et le TP maintenant, puis laissez faire.");
+
+    var pipU = UNIT[a.cls];
+    $("t-kv").innerHTML =
+      kv("Distance du stop", fx(c.distPips, 1) + " " + pipU) +
+      kv("Valeur du " + pipU.replace(/s$/, ""), money(c.pipVal * c.lots, 2)) +
+      kv("Taille exacte", fx(c.raw, 3) + " " + LOTW[a.cls]) +
+      kv("Espérance / trade", smoney(c.ev), c.ev > 0 ? "g" : "l") +
+      kv("Sur 100 trades", smoney(c.ev * 100, 0), c.ev > 0 ? "g" : "l") +
+      kv("Levier utilisé", "×" + fx(c.notional / st.capital, 1), c.notional / st.capital > 20 ? "w" : "");
+
+    $("t-scen").innerHTML = "<thead><tr><th>Scénario</th><th>Résultat</th><th>R</th><th>Capital</th></tr></thead><tbody>" + c.scen.map(function (s) {
+      var cl = s.pl > 0 ? "g" : (s.pl < 0 ? "l" : "");
+      return "<tr><td>" + s.name + '</td><td class="' + cl + '">' + smoney(s.pl) + '</td><td class="' + cl + '">' + R(s.pl / c.loss) + '</td><td class="' + cl + '">' + spct(s.pl / st.capital * 100, 2) + "</td></tr>";
+    }).join("") + "</tbody>";
+
+    drawLadder(c);
+    var lastTp = c.tps.length ? c.tps[c.tps.length - 1].price : NaN;
+    $("t-oath").innerHTML = "Si le stop à <b>" + fx(c.sl, a.dec) + "</b> est touché, je perds <b>" + money(c.loss) + "</b> (" + pct(rp, 2) + " du capital). Cet argent est déjà dépensé. " +
+      "Je ne recule pas le stop. Je laisse le prix aller jusqu'à <b class=\"g\">" + fx(lastTp, a.dec) + "</b> sans sortir par peur. Avec " + pct(c.wr * 100, 0) + " de réussite, environ " +
+      fx(Math.round((1 - c.wr) * 10), 0) + " trades sur 10 comme celui-ci finissent au stop. C'est le prix d'entrée dans le jeu.";
+  }
+  function kv(k, v, cls) { return '<div><span class="k">' + k + '</span><span class="v ' + (cls || "") + '">' + v + "</span></div>"; }
+
+  function drawLadder(c) {
+    var svg = $("t-ladder"), W = svg.clientWidth || 600, H = 132, a = c.a;
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    var maxR = Math.max.apply(null, [1].concat(c.reachR)) * 1.08, pad = 14;
+    var X = function (r) { return pad + (r + 1.08) / (maxR + 1.08) * (W - 2 * pad); };
+    var y = 58, h = 18, out = "";
+    out += '<rect x="' + X(-1) + '" y="' + y + '" width="' + (X(0) - X(-1)) + '" height="' + h + '" rx="4" fill="var(--loss)" opacity=".85"/>';
+    out += '<rect x="' + X(0) + '" y="' + y + '" width="' + (X(c.reachR[c.reachR.length - 1] || 0) - X(0)) + '" height="' + h + '" rx="4" fill="var(--gain)" opacity=".85"/>';
+    for (var r = 1; r < maxR; r++) out += '<line x1="' + X(r) + '" x2="' + X(r) + '" y1="' + (y + 3) + '" y2="' + (y + h - 3) + '" stroke="var(--surface)" stroke-width="1.5" opacity=".7"/>';
+    function mark(rv, top, label, sub, color, anchor) {
+      var x = X(rv);
+      out += '<line x1="' + x + '" x2="' + x + '" y1="' + (top ? y - 8 : y + h) + '" y2="' + (top ? y : y + h + 8) + '" stroke="' + color + '" stroke-width="2"/>';
+      var ty = top ? y - 30 : y + h + 24;
+      out += '<text x="' + x + '" y="' + ty + '" text-anchor="' + anchor + '" font-family="' + css("--f-data") + '" font-size="12" font-weight="600" fill="' + color + '">' + label + "</text>";
+      out += '<text x="' + x + '" y="' + (ty + 15) + '" text-anchor="' + anchor + '" font-family="' + css("--f-body") + '" font-size="11" fill="var(--muted)">' + sub + "</text>";
+    }
+    mark(-1, true, "SL " + fx(c.sl, a.dec), smoney(-c.loss, 0), "var(--loss)", "start");
+    mark(0, false, fx(c.entry, a.dec), "Entrée", "var(--ink)", "middle");
+    c.tps.forEach(function (t, i) {
+      var last = i === c.tps.length - 1;
+      mark(c.reachR[i], i % 2 === 0, "TP" + (i + 1) + " " + fx(t.price, a.dec), R(c.reachR[i], 1) + " · " + t.pct + " %", "var(--gain)", last ? "end" : "middle");
+    });
+    svg.innerHTML = out;
+  }
+
+  // trade events
+  function tradeChanged() { save(); renderTrade(); renderHeader(); }
+  $("t-entry").addEventListener("input", function () {
+    var T = S.trade, v = val("t-entry"); if (!(v > 0)) return;
+    var d = T.entry - T.sl, shift = v - T.entry;
+    T.entry = v; T.sl = v - d; T.tps.forEach(function (t) { t.price += shift; });
+    tradeChanged();
+  });
+  $("t-sl").addEventListener("input", function () { var v = val("t-sl"); if (v > 0) { S.trade.sl = v; tradeChanged(); } });
+  $("t-sldist").addEventListener("input", function () {
+    var v = val("t-sldist"), T = S.trade, a = asset(T.asset); if (!(v > 0)) return;
+    var oldD = Math.abs(T.entry - T.sl), sg = T.dir === "long" ? 1 : -1;
+    var rs = T.tps.map(function (t) { return oldD > 0 ? (t.price - T.entry) / oldD : 2 * sg; });
+    T.sl = roundTo(T.entry - sg * v * a.pip, a.dec + 1);
+    var nd = Math.abs(T.entry - T.sl);
+    T.tps.forEach(function (t, i) { t.price = roundTo(T.entry + rs[i] * nd, a.dec + 1); });
+    tradeChanged();
+  });
+  $("t-wr").addEventListener("input", function () { var v = val("t-wr"); if (v > 0 && v < 100) { S.trade.wr = v; tradeChanged(); } });
+  $("t-spread").addEventListener("input", function () { var v = val("t-spread"); S.trade.spread = v >= 0 ? v : 0; tradeChanged(); });
+  $("t-comm").addEventListener("input", function () { var v = val("t-comm"); S.trade.comm = v >= 0 ? v : 0; tradeChanged(); });
+  $("t-risk").addEventListener("input", function () { S.trade.riskPct = val("t-risk"); tradeChanged(); });
+  $("t-be").addEventListener("change", function () { S.trade.be = this.checked; tradeChanged(); });
+  $("t-dir").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b || b.dataset.v === S.trade.dir) return;
+    var T = S.trade; T.dir = b.dataset.v;
+    T.sl = 2 * T.entry - T.sl; T.tps.forEach(function (t) { t.price = 2 * T.entry - t.price; });
+    tradeChanged();
+  });
+  $("t-tps").addEventListener("input", function (e) {
+    var row = e.target.closest(".tp"); if (!row) return;
+    var i = +row.dataset.i, k = e.target.dataset.k, T = S.trade, t = T.tps[i], v = parseFloat(String(e.target.value).replace(",", "."));
+    var sg = T.dir === "long" ? 1 : -1, d = Math.abs(T.entry - T.sl), a = asset(T.asset);
+    if (k === "price" && v > 0) { t.price = v; var ri = row.querySelector('[data-k="r"]'); ri.value = +((v - T.entry) * sg / d).toFixed(2); }
+    if (k === "r" && isFinite(v)) { t.price = roundTo(T.entry + sg * v * d, a.dec + 1); row.querySelector('[data-k="price"]').value = +t.price.toFixed(a.dec); }
+    if (k === "pct" && v >= 0) t.pct = clamp(v, 0, 100);
+    tradeChanged();
+  });
+  $("t-tps").addEventListener("click", function (e) {
+    var b = e.target.closest('[data-k="del"]'); if (!b) return;
+    S.trade.tps.splice(+b.closest(".tp").dataset.i, 1); rebalance(); renderTP(); tradeChanged();
+  });
+  function rebalance() { var n = S.trade.tps.length, each = Math.floor(100 / n); S.trade.tps.forEach(function (t, i) { t.pct = i === n - 1 ? 100 - each * (n - 1) : each; }); }
+  $("t-tp-add").addEventListener("click", function () {
+    var T = S.trade, sg = T.dir === "long" ? 1 : -1, d = Math.abs(T.entry - T.sl), a = asset(T.asset);
+    if (T.tps.length >= 3) return;
+    var last = T.tps.length ? (T.tps[T.tps.length - 1].price - T.entry) * sg / d : 1;
+    T.tps.push({ price: roundTo(T.entry + sg * (last + 1) * d, a.dec + 1), pct: 0 }); rebalance(); renderTP(); tradeChanged();
+  });
+  $("t-tp-quick").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    var T = S.trade, sg = T.dir === "long" ? 1 : -1, d = Math.abs(T.entry - T.sl), a = asset(T.asset);
+    T.tps[0].price = roundTo(T.entry + sg * parseFloat(b.dataset.r) * d, a.dec + 1); renderTP(); tradeChanged();
+  });
+  $("t-recent").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) pickAsset(b.dataset.id); });
+
+  function pickAsset(id) {
+    var a = asset(id), T = S.trade;
+    if (T.asset !== a.id) {
+      T.asset = a.id; var sg = T.dir === "long" ? 1 : -1;
+      T.entry = a.price;
+      var distUnits = { fx: 20, metal: 100, idx: 50, crypto: 1000, fut: 16, stock: 200 }[a.cls] || 20;
+      if (a.id === "ETHUSD") distUnits = 40;
+      var d = distUnits * a.pip;
+      T.sl = roundTo(a.price - sg * d, a.dec + 1);
+      T.tps = [{ price: roundTo(a.price + sg * 2.5 * d, a.dec + 1), pct: 100 }];
+      T.spread = a.cls === "fx" ? 0.5 : 0;
+      T.comm = a.cls === "fx" ? 7 : (a.cls === "fut" ? (a.cs <= 10 ? 1.5 : 4.5) : 0);
+      T.recent = [a.id].concat(T.recent.filter(function (x) { return x !== a.id; })).slice(0, 6);
+    }
+    tradeChanged();
+  }
+
+  // asset dialog
+  var dlgCls = "all";
+  function renderAssetList() {
+    var qv = $("dlg-q").value.trim().toLowerCase();
+    $("dlg-cls").innerHTML = ['<button type="button" data-c="all" aria-pressed="' + (dlgCls === "all") + '">Tous</button>'].concat(Object.keys(CLASSES).map(function (k) {
+      return '<button type="button" data-c="' + k + '" aria-pressed="' + (dlgCls === k) + '">' + CLASSES[k] + "</button>"; })).join("");
+    $("dlg-list").innerHTML = assets().filter(function (a) {
+      return (dlgCls === "all" || a.cls === dlgCls) && (!qv || (a.id + " " + a.name).toLowerCase().indexOf(qv) >= 0);
+    }).map(function (a) {
+      var pv = a.pip * a.cs * q2usd(a, a.price);
+      return '<button type="button" data-id="' + esc(a.id) + '" aria-pressed="' + (a.id === S.trade.asset) + '"><span class="tk">' + esc(a.id) + '</span><span class="nm">' + esc(a.name) + '</span><span class="sp">' + money(pv, 2) + "/" + UNIT[a.cls].replace(/s$/, "") + "</span></button>";
+    }).join("") || '<p class="note">Aucun actif. Ajoutez-le dans Réglages.</p>';
+  }
+  $("t-asset-open").addEventListener("click", function () { $("dlg-q").value = ""; renderAssetList(); try { $("dlg-asset").showModal(); } catch (e) { $("dlg-asset").setAttribute("open", ""); } });
+  $("dlg-close").addEventListener("click", function () { $("dlg-asset").close(); });
+  $("dlg-q").addEventListener("input", renderAssetList);
+  $("dlg-cls").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) { dlgCls = b.dataset.c; renderAssetList(); } });
+  $("dlg-list").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) { pickAsset(b.dataset.id); $("dlg-asset").close(); } });
+
+  $("t-go-sim").addEventListener("click", function () {
+    var c = calcTrade(); if (!c.ok || !c.lots) return;
+    S.sim.risk = roundTo(c.riskPctReal, 2); S.sim.rr = roundTo(c.rr, 2); S.sim.wr = S.trade.wr; save();
+    location.hash = "simuler";
+  });
+
+  // =================== JOUR ===================
+  function addResult(r, note) {
+    if (!isFinite(r)) return;
+    var now = new Date();
+    S.journal.push({ day: dayKey(now), t: now.getTime(), r: r, usd: r * oneR(), note: note || "" });
+    if (S.journal.length > 2000) S.journal = S.journal.slice(-2000);
+    save(); renderJour(); renderHeader();
+  }
+  $("j-loss").addEventListener("click", function () { addResult(-1, $("j-note").value); $("j-note").value = ""; });
+  $("j-be").addEventListener("click", function () { addResult(0, $("j-note").value); $("j-note").value = ""; });
+  $("j-win").addEventListener("click", function () { addResult(S.sim.rr || 2, $("j-note").value); $("j-note").value = ""; });
+  $("j-add").addEventListener("click", function () { var v = val("j-custom"); if (isFinite(v)) { addResult(v, $("j-note").value); $("j-custom").value = ""; $("j-note").value = ""; } });
+  $("j-log").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-t]"); if (!b) return;
+    var t = +b.dataset.t; S.journal = S.journal.filter(function (x) { return x.t !== t; }); save(); renderJour(); renderHeader();
+  });
+
+  function renderJour() {
+    var d = dayState(), st = S.settings, r1 = oneR();
+    $("j-date").textContent = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
+    $("j-r-note").textContent = "1R = " + money(r1) + " (" + pct(st.riskPct, 2) + " de " + money(st.capital, 0) + ").";
+    $("j-win").textContent = "Gain " + R(S.sim.rr || 2, 1);
+    var used = d.lossUsed / d.limit;
+    setRing("r-day", used, used >= 1 ? "bad" : (used >= 0.6 ? "mid" : "good"), money(-d.lossUsed, 0), "sur " + money(d.limit, 0));
+    var tr = d.list.length / st.maxTrades;
+    setRing("r-ntr", tr, tr >= 1 ? "bad" : (tr >= 0.8 ? "mid" : "good"), d.list.length + " / " + st.maxTrades, "aujourd'hui");
+    var sk = d.streak / st.maxLossStreak;
+    setRing("r-streak", sk, sk >= 1 ? "bad" : (sk > 0 ? "mid" : "good"), d.streak + " / " + st.maxLossStreak, d.streak ? "en cours" : "aucune");
+    if (d.stop) alertBox("j-alert", "bad", "Stop. Fermez la plateforme.", d.reason + ". Vous avez suivi le plan en acceptant ces pertes. Le respecter maintenant, c'est arrêter. Demain est un autre jour.");
+    else if (d.warn) alertBox("j-alert", "mid", "Prudence", "Il reste " + money(d.room, 0) + " avant la limite du jour" + (d.streak ? ", et " + d.streak + " perte(s) d'affilée" : "") + ". Pas de trade de revanche. Même taille, même plan.");
+    else alertBox("j-alert", "good", "Vous pouvez trader", "Marge avant la limite du jour : " + money(d.room, 0) + ", soit " + fx(Math.floor(d.room / r1 + 1e-9), 0) + " stops complets.");
+    ["j-loss", "j-be", "j-win", "j-add"].forEach(function (id) { $(id).disabled = false; });
+    $("j-strip").innerHTML = d.list.map(function (e) { return '<i class="' + (e.r > 0 ? "w" : (e.r < 0 ? "l" : "b")) + '" title="' + R(e.r, 1) + '"></i>'; }).join("");
+    $("j-log").innerHTML = d.list.length ? d.list.slice().reverse().map(function (e) {
+      var col = e.r > 0 ? "var(--gain)" : (e.r < 0 ? "var(--loss)" : "var(--muted)");
+      var tm = new Date(e.t); tm = String(tm.getHours()).padStart(2, "0") + ":" + String(tm.getMinutes()).padStart(2, "0");
+      return '<div class="it"><span class="dot" style="background:' + col + '"></span><span class="tm">' + tm + '</span><span class="ds">' + (esc(e.note) || (e.r > 0 ? "Gain" : (e.r < 0 ? "Perte" : "Point mort"))) +
+        '</span><span class="r" style="color:' + col + '">' + R(e.r, 1) + ' · ' + smoney(e.usd, 0) + '</span><button type="button" class="ghost" data-t="' + e.t + '" aria-label="Supprimer" style="padding:4px 8px">×</button></div>';
+    }).join("") : '<p class="note">Aucun trade aujourd\'hui. Ajoutez chaque résultat dès la sortie : stop, point mort ou gain.</p>';
+    $("j-sum").textContent = d.list.length ? smoney(d.pl, 0) + " · " + R(d.pl / r1, 1) : "";
+    var all = S.journal, n = all.length, w = all.filter(function (e) { return e.r > 0; }).length, sumR = all.reduce(function (s, e) { return s + e.r; }, 0);
+    var wins = all.filter(function (e) { return e.r > 0; }), avgW = wins.length ? wins.reduce(function (s, e) { return s + e.r; }, 0) / wins.length : NaN;
+    $("j-stats").innerHTML = kv("Trades enregistrés", fx(n, 0)) + kv("Win rate réel", n ? pct(w / n * 100, 0) : "—") + kv("Gain moyen", isFinite(avgW) ? R(avgW, 2) : "—") + kv("Total", n ? R(sumR, 1) : "—", sumR > 0 ? "g" : (sumR < 0 ? "l" : ""));
+  }
+
+  // =================== SIMULER ===================
+  var simData = null, simT = null;
+  function randn() { var u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+  function quant(s, p) { var i = (s.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return s[lo] + (s[hi] - s[lo]) * (i - lo); }
+  function syncSimInputs() {
+    var m = S.sim, active = document.activeElement;
+    [["s-risk", m.risk], ["s-wr", m.wr], ["s-rr", m.rr], ["s-n", m.n], ["s-ruin", m.ruin], ["s-sd", m.sd], ["s-mode", m.mode]].forEach(function (p) { if ($(p[0]) !== active) $(p[0]).value = p[1]; });
+    $("s-risk-v").textContent = pct(m.risk, 1) + " · " + money(S.settings.capital * m.risk / 100);
+    $("s-wr-v").textContent = pct(m.wr, 0);
+    $("s-rr-v").textContent = fx(m.rr, 1) + " : 1";
+    document.querySelectorAll("#s-presets button").forEach(function (b) { b.setAttribute("aria-pressed", String(Math.abs(parseFloat(b.dataset.p) - m.risk) < 1e-9)); });
+  }
+  function runSim() {
+    syncSimInputs();
+    var m = S.sim, cap = S.settings.capital, risk = m.risk / 100, rr = m.rr, wr = m.wr / 100, n = Math.round(clamp(m.n || 200, 10, 1000)),
+        runs = 2000, ruin = clamp(m.ruin || 30, 5, 95) / 100, sd = clamp(m.sd || 0, 0, 20) / 100;
+    if (!(cap > 0 && risk > 0 && rr > 0 && wr > 0 && wr < 1)) return;
+    var paths = new Float32Array(runs * (n + 1)), finals = new Float64Array(runs), mdds = new Float64Array(runs), streaks = new Int32Array(runs), dead = 0, fixedR = cap * risk;
     for (var s = 0; s < runs; s++) {
-      var p = clamp(wr + wrsd * randn(), 0.01, 0.99);
-      var eq = cap, peak = cap, mdd = 0, run = 0, best = 0, died = false, off = s * (n + 1);
+      var p = clamp(wr + sd * randn(), 0.01, 0.99), eq = cap, peak = cap, mdd = 0, run = 0, best = 0, died = false, off = s * (n + 1);
       paths[off] = eq;
       for (var t = 1; t <= n; t++) {
-        if (eq > 0) {
-          var amt = mode === "pct" ? eq * risk : fixedRisk;
-          if (Math.random() < p) { eq += amt * R; run = 0; }
-          else { eq -= amt; run++; if (run > best) best = run; }
-          if (eq < 0) eq = 0;
-        }
-        if (eq > peak) peak = eq;
-        var dd = peak > 0 ? (peak - eq) / peak : 1;
-        if (dd > mdd) mdd = dd;
+        if (eq > 0) { var amt = m.mode === "pct" ? eq * risk : fixedR; if (Math.random() < p) { eq += amt * rr; run = 0; } else { eq -= amt; run++; if (run > best) best = run; } if (eq < 0) eq = 0; }
+        if (eq > peak) peak = eq; var dd = peak > 0 ? (peak - eq) / peak : 1; if (dd > mdd) mdd = dd;
         if (!died && eq <= cap * (1 - ruin)) died = true;
         paths[off + t] = eq;
       }
-      finals[s] = eq; mdds[s] = mdd; streaks[s] = best;
-      if (died) dead++;
-      if (eq < cap) below++;
+      finals[s] = eq; mdds[s] = mdd; streaks[s] = best; if (died) dead++;
     }
-    var sf = Array.from(finals).sort(function (a, b) { return a - b; });
-    var sd = Array.from(mdds).sort(function (a, b) { return a - b; });
-    var ss = Array.from(streaks).sort(function (a, b) { return a - b; });
-
-    var bands = { p5: [], p25: [], p50: [], p75: [], p95: [] }, col = new Float64Array(runs);
-    var stride = Math.max(1, Math.floor(n / 200));
-    var xs = [];
+    var sf = Array.from(finals).sort(function (a, b) { return a - b; }), sdd = Array.from(mdds).sort(function (a, b) { return a - b; }), ss = Array.from(streaks).sort(function (a, b) { return a - b; });
+    var col = new Float64Array(runs), stride = Math.max(1, Math.floor(n / 160)), xs = [], B = { p5: [], p25: [], p50: [], p75: [], p95: [] };
     for (var t2 = 0; t2 <= n; t2 += stride) {
       for (var s2 = 0; s2 < runs; s2++) col[s2] = paths[s2 * (n + 1) + t2];
-      col.sort();
-      xs.push(t2);
-      bands.p5.push(quantile(col, 0.05)); bands.p25.push(quantile(col, 0.25)); bands.p50.push(quantile(col, 0.5));
-      bands.p75.push(quantile(col, 0.75)); bands.p95.push(quantile(col, 0.95));
+      col.sort(); xs.push(t2);
+      B.p5.push(quant(col, .05)); B.p25.push(quant(col, .25)); B.p50.push(quant(col, .5)); B.p75.push(quant(col, .75)); B.p95.push(quant(col, .95));
     }
-    var samples = [];
-    for (var k = 0; k < 6; k++) {
-      var idx = Math.floor((k + 0.5) / 6 * runs), arr = [];
-      for (var t3 = 0; t3 <= n; t3 += stride) arr.push(paths[idx * (n + 1) + t3]);
-      samples.push(arr);
-    }
-    simData = { cap: cap, n: n, xs: xs, bands: bands, samples: samples, ruinLine: cap * (1 - ruin), streaks: streaks, runs: runs };
-
-    var E = wr * R - (1 - wr);
-    var be = 1 / (1 + R);
-    var pDead = dead / runs, pBelow = below / runs;
-    var med = quantile(sf, 0.5), p5 = quantile(sf, 0.05), p95 = quantile(sf, 0.95);
-    var ddMed = quantile(sd, 0.5), dd95 = quantile(sd, 0.95);
-    var stMed = quantile(ss, 0.5), st95 = quantile(ss, 0.95);
-
-    $("sim-kpis").innerHTML =
-      kpi("Espérance", rr(E, 2) + " / trade", "Équilibre à " + pct(be * 100, 1) + " de réussite", E > 0 ? "gain" : "loss") +
-      kpi("Capital final médian", money(med, 0), spct((med / cap - 1) * 100, 0), med >= cap ? "gain" : "loss") +
-      kpi("Pire 5 %", money(p5, 0), "Meilleur 5 % : " + money(p95, 0), p5 < cap ? "loss" : "gain") +
-      kpi("Drawdown max typique", pct(-ddMed * 100, 1), "1 cas sur 20 : " + pct(-dd95 * 100, 1), ddMed > 0.2 ? "loss" : (ddMed > 0.1 ? "warn" : "")) +
-      kpi("Chance de « mourir »", pct(pDead * 100, 1), "Toucher −" + pct(ruin * 100, 0) + " à un moment", pDead > 0.1 ? "loss" : (pDead > 0.02 ? "warn" : "gain")) +
-      kpi("Fini en perte", pct(pBelow * 100, 0), "Après " + n + " trades", pBelow > 0.3 ? "warn" : "");
-
-    var v = $("sim-verdict"), cls, title, body;
-    if (E <= 0) {
-      cls = "bad"; title = "Cette stratégie perd de l'argent, quel que soit le risque";
-      body = "Avec " + pct(wr * 100, 0) + " de réussite il faut un RR d'au moins " + nf(2).format((1 - wr) / wr) + " pour être à l'équilibre. Réduire le risque ne fait que ralentir la perte.";
-    } else if (pDead > 0.1 || dd95 > 0.5) {
-      cls = "bad"; title = "Stratégie gagnante, risque trop gros";
-      body = "L'avantage existe (" + rr(E, 2) + " par trade) mais " + pct(pDead * 100, 0) + " des parcours touchent −" + pct(ruin * 100, 0) +
-        ". Baisser le risque par trade garde le même avantage et vous laisse en vie pour l'encaisser.";
-    } else if (pDead > 0.02 || ddMed > 0.2) {
-      cls = "mid"; title = "Viable, mais les drawdowns vont faire mal";
-      body = "Attendez-vous à un drawdown d'environ " + pct(ddMed * 100, 0) + " et à " + nf(0).format(stMed) + " pertes d'affilée. Si vous savez que vous craquerez avant, baissez le risque maintenant.";
-    } else {
-      cls = "good"; title = "Vous restez vivant";
-      body = "Moins de " + pct(Math.max(pDead * 100, 0.1), 1) + " de risque de toucher −" + pct(ruin * 100, 0) + ". Vous traverserez quand même des séries de " +
-        nf(0).format(stMed) + " pertes et un drawdown d'environ " + pct(ddMed * 100, 0) + " : ils font partie du chemin, pas un signal d'arrêt.";
-    }
-    v.className = "verdict " + cls;
-    v.innerHTML = "<strong>" + title + "</strong><p>" + body + "</p>";
-    $("sim-streaknote").textContent = "Dans la moitié des simulations, la pire série atteint " + nf(0).format(stMed) + " pertes d'affilée ; dans 1 cas sur 20, " +
-      nf(0).format(st95) + " ou plus. Si votre stratégie est saine, ces séries ne veulent pas dire qu'elle est cassée.";
+    var samples = []; for (var k = 0; k < 5; k++) { var idx = Math.floor((k + .5) / 5 * runs), arr = []; for (var t3 = 0; t3 <= n; t3 += stride) arr.push(paths[idx * (n + 1) + t3]); samples.push(arr); }
+    var profit = sf.filter(function (x) { return x > cap; }).length / runs;
+    simData = { cap: cap, n: n, xs: xs, B: B, samples: samples, ruinLine: cap * (1 - ruin), streaks: streaks };
+    var E = wr * rr - (1 - wr), pd = dead / runs, ddMed = quant(sdd, .5), dd95 = quant(sdd, .95), stMed = quant(ss, .5), st95 = quant(ss, .95);
+    setRing("r-surv", 1 - pd, pd > .1 ? "bad" : (pd > .02 ? "mid" : "good"), pct((1 - pd) * 100, (1 - pd) > .995 ? 1 : 0), "ne touche pas −" + pct(ruin * 100, 0));
+    setRing("r-prof", profit, profit < .5 ? "bad" : (profit < .8 ? "mid" : "good"), pct(profit * 100, 0), "après " + n + " trades");
+    setRing("r-dd", ddMed / Math.max(ruin, .01), ddMed > ruin * .66 ? "bad" : (ddMed > ruin * .33 ? "mid" : "good"), pct(-ddMed * 100, 0), "1 fois sur 20 : " + pct(-dd95 * 100, 0));
+    $("s-kv").innerHTML = kv("Espérance", R(E, 2) + "/trade", E > 0 ? "g" : "l") + kv("Équilibre à", pct(100 / (1 + rr), 1) + " WR") + kv("Capital médian", money(quant(sf, .5), 0), quant(sf, .5) >= cap ? "g" : "l") + kv("Pire 5 %", money(quant(sf, .05), 0), quant(sf, .05) >= cap ? "g" : "l");
+    if (E <= 0) alertBox("s-alert", "bad", "Cette stratégie perd, quel que soit le risque", "Avec " + pct(wr * 100, 0) + " de réussite, il faut un R:R d'au moins " + fx((1 - wr) / wr, 2) + ". Réduire le risque ne fait que ralentir la perte.");
+    else if (pd > .1 || dd95 > .5) alertBox("s-alert", "bad", "Bonne stratégie, risque trop gros", pct(pd * 100, 0) + " des parcours touchent −" + pct(ruin * 100, 0) + ". Même avantage avec un risque plus petit : vous restez en vie pour l'encaisser.");
+    else if (pd > .02 || ddMed > .2) alertBox("s-alert", "mid", "Viable, mais les drawdowns vont faire mal", "Drawdown typique de " + pct(ddMed * 100, 0) + " et " + fx(stMed, 0) + " pertes d'affilée. Si vous savez que vous craquerez avant, baissez le risque maintenant.");
+    else alertBox("s-alert", "good", "Vous restez vivant", "Vous traverserez des séries de " + fx(stMed, 0) + " pertes et un drawdown d'environ " + pct(ddMed * 100, 0) + ". Ils font partie du chemin, ce n'est pas un signal d'arrêt.");
+    $("s-streak-note").textContent = "Dans la moitié des simulations, la pire série atteint " + fx(stMed, 0) + " pertes d'affilée ; 1 fois sur 20, " + fx(st95, 0) + " ou plus.";
     drawSim(); drawStreak();
   }
-
-  function setupCanvas(cv) {
-    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
-    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
-    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
-    return { ctx: ctx, w: w, h: h };
-  }
-  function niceTicks(lo, hi, count) {
-    var span = hi - lo || 1, step = Math.pow(10, Math.floor(Math.log10(span / count))), err = span / count / step;
-    if (err >= 7.5) step *= 10; else if (err >= 3.5) step *= 5; else if (err >= 1.5) step *= 2;
-    var out = []; for (var v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(v); return out;
-  }
-  function shortMoney(v) { var a = Math.abs(v); if (a >= 1e6) return nf(1).format(v / 1e6) + " M$"; if (a >= 1e4) return nf(0).format(v / 1e3) + " k$"; return nf(0).format(v) + " $"; }
-
-  function drawSim() {
-    if (!simData) return;
-    var cv = $("sim-chart"); if (!cv.clientWidth) return;
-    var c = setupCanvas(cv), ctx = c.ctx, d = simData;
-    var pad = { l: 58, r: 12, t: 12, b: 28 }, W = c.w - pad.l - pad.r, H = c.h - pad.t - pad.b;
-    var lo = Math.min(d.ruinLine, Math.min.apply(null, d.bands.p5)), hi = Math.max.apply(null, d.bands.p95);
-    lo = Math.max(0, lo - (hi - lo) * 0.04); hi = hi + (hi - lo) * 0.04;
-    var X = function (t) { return pad.l + t / d.n * W; }, Y = function (v) { return pad.t + (1 - (v - lo) / (hi - lo)) * H; };
-    var ink = css("--muted"), line = css("--line"), acc = css("--accent"), loss = css("--loss");
-    ctx.font = "11px " + css("--f-data"); ctx.fillStyle = ink; ctx.strokeStyle = line; ctx.lineWidth = 1;
-    niceTicks(lo, hi, 5).forEach(function (v) {
-      var y = Math.round(Y(v)) + 0.5; ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + W, y); ctx.stroke();
-      ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.fillText(shortMoney(v), pad.l - 6, y);
-    });
-    ctx.textAlign = "center"; ctx.textBaseline = "top";
-    niceTicks(0, d.n, 6).forEach(function (t) { ctx.fillText(nf(0).format(t), X(t), pad.t + H + 8); });
-    function band(a, b, alpha) {
-      ctx.beginPath(); d.xs.forEach(function (t, i) { var x = X(t), y = Y(a[i]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
-      for (var i = d.xs.length - 1; i >= 0; i--) ctx.lineTo(X(d.xs[i]), Y(b[i]));
-      ctx.closePath(); ctx.globalAlpha = alpha; ctx.fillStyle = acc; ctx.fill(); ctx.globalAlpha = 1;
-    }
-    band(d.bands.p5, d.bands.p95, 0.16); band(d.bands.p25, d.bands.p75, 0.3);
-    function path(arr, color, width, alpha) {
-      ctx.beginPath(); d.xs.forEach(function (t, i) { var x = X(t), y = Y(arr[i]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
-      ctx.strokeStyle = color; ctx.lineWidth = width; ctx.globalAlpha = alpha; ctx.stroke(); ctx.globalAlpha = 1;
-    }
-    d.samples.forEach(function (s) { path(s, ink, 1, 0.45); });
-    path(d.bands.p50, acc, 2.5, 1);
-    ctx.setLineDash([5, 4]); ctx.strokeStyle = loss; ctx.lineWidth = 1.5;
-    var ry = Y(d.ruinLine); ctx.beginPath(); ctx.moveTo(pad.l, ry); ctx.lineTo(pad.l + W, ry); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = loss; ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.fillText("seuil « mort »", pad.l + 4, ry - 3);
-    ctx.strokeStyle = ink; ctx.globalAlpha = 0.6; var sy = Math.round(Y(d.cap)) + 0.5; ctx.beginPath(); ctx.moveTo(pad.l, sy); ctx.lineTo(pad.l + W, sy); ctx.stroke(); ctx.globalAlpha = 1;
-    var lx = X(d.n), ly = Y(d.bands.p50[d.bands.p50.length - 1]);
-    ctx.fillStyle = acc; ctx.beginPath(); ctx.arc(lx, ly, 4, 0, Math.PI * 2); ctx.fill();
-  }
-
-  function drawStreak() {
-    if (!simData) return;
-    var cv = $("sim-streak"); if (!cv.clientWidth) return;
-    var c = setupCanvas(cv), ctx = c.ctx, st = simData.streaks, maxK = 0;
-    for (var i = 0; i < st.length; i++) if (st[i] > maxK) maxK = st[i];
-    maxK = Math.max(maxK, 5);
-    var counts = new Array(maxK + 1).fill(0); for (i = 0; i < st.length; i++) counts[st[i]]++;
-    var top = Math.max.apply(null, counts);
-    var pad = { l: 40, r: 8, t: 10, b: 26 }, W = c.w - pad.l - pad.r, H = c.h - pad.t - pad.b, bw = W / (maxK + 1);
-    var ink = css("--muted"), line = css("--line"), loss = css("--loss");
-    ctx.font = "11px " + css("--f-data"); ctx.fillStyle = ink; ctx.strokeStyle = line;
-    niceTicks(0, top / st.length * 100, 4).forEach(function (v) {
-      var y = Math.round(pad.t + H - v / 100 * st.length / top * H) + 0.5;
-      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + W, y); ctx.stroke();
-      ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.fillText(nf(0).format(v) + "%", pad.l - 6, y);
-    });
-    var every = Math.ceil((maxK + 1) / 16);
-    for (var k = 0; k <= maxK; k++) {
-      var h = counts[k] / top * H, x = pad.l + k * bw;
-      ctx.fillStyle = loss; ctx.globalAlpha = 0.25 + 0.75 * (k / maxK); ctx.fillRect(x + 1, pad.t + H - h, Math.max(1, bw - 2), h); ctx.globalAlpha = 1;
-      if (k % every === 0) { ctx.fillStyle = ink; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText(String(k), x + bw / 2, pad.t + H + 8); }
-    }
-  }
-
-  $("sim-run").addEventListener("click", runSim);
-  document.querySelectorAll("#sim-presets button").forEach(function (b) {
-    b.addEventListener("click", function () { $("sim-risk").value = b.dataset.p; save(); runSim(); });
+  function schedSim() { clearTimeout(simT); simT = setTimeout(runSim, 120); }
+  [["s-risk", "risk"], ["s-wr", "wr"], ["s-rr", "rr"], ["s-n", "n"], ["s-ruin", "ruin"], ["s-sd", "sd"]].forEach(function (p) {
+    $(p[0]).addEventListener("input", function () { var v = val(p[0]); if (isFinite(v)) { S.sim[p[1]] = v; save(); syncSimInputs(); schedSim(); } });
   });
-  var simTimer = null;
-  $("f-sim").addEventListener("input", function () { clearTimeout(simTimer); simTimer = setTimeout(runSim, 250); });
-  $("f-sim").addEventListener("change", function () { clearTimeout(simTimer); simTimer = setTimeout(runSim, 50); });
+  $("s-mode").addEventListener("change", function () { S.sim.mode = this.value; save(); schedSim(); });
+  $("s-run").addEventListener("click", runSim);
+  $("s-presets").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) { S.sim.risk = parseFloat(b.dataset.p); save(); runSim(); } });
+  $("s-mine").addEventListener("click", function () {
+    var all = S.journal; if (all.length < 5) { alertBox("s-alert", "mid", "Pas assez de trades dans le journal", "Enregistrez au moins 5 résultats dans l'écran Jour."); return; }
+    var w = all.filter(function (e) { return e.r > 0; }), l = all.filter(function (e) { return e.r < 0; });
+    S.sim.wr = Math.round(w.length / all.length * 100);
+    var aw = w.reduce(function (s, e) { return s + e.r; }, 0) / Math.max(1, w.length), al = -l.reduce(function (s, e) { return s + e.r; }, 0) / Math.max(1, l.length);
+    S.sim.rr = roundTo(al > 0 ? aw / al : aw, 1); save(); runSim();
+  });
 
-  // =================== SERIES ===================
-  function renderSeries() {
-    var wr = num("ser-wr") / 100, n = Math.round(clamp(num("ser-trades") || 100, 5, 5000)), risk = num("ser-risk");
-    if (!(wr > 0 && wr < 1)) return;
-    var q = 1 - wr;
-    var ks = [3, 4, 5, 6, 7, 8, 10, 12, 15];
-    var rows = ks.map(function (k) {
-      var p = probRun(n, q, k);
-      var cls = p > 0.75 ? "cl" : (p > 0.3 ? "cw" : "");
-      var cost = risk > 0 ? (1 - Math.pow(1 - risk / 100, k)) * 100 : NaN;
-      return "<tr><td>" + k + ' pertes d\'affilée</td><td class="' + cls + '">' + pct(p * 100, p < 0.01 ? 2 : 0) + "</td><td>" +
-        (p > 0 ? "1 chance sur " + nf(0).format(Math.max(1, Math.round(1 / p))) : "—") + '</td><td class="l">' + pct(-cost, 1) + "</td></tr>";
-    }).join("");
-    $("ser-prob").innerHTML = "<thead><tr><th>Série</th><th>Probabilité</th><th>Fréquence</th><th>Coût à " + pct(risk, risk < 1 ? 2 : 1) + "</th></tr></thead><tbody>" + rows + "</tbody>";
-
-    var risks = [0.25, 0.5, 1, 2, 3, 5, 10];
-    if (risk > 0 && risks.indexOf(risk) < 0) { risks.push(risk); risks.sort(function (a, b) { return a - b; }); }
-    var lens = [3, 5, 8, 10, 15];
-    var head = "<thead><tr><th>Risque / trade</th>" + lens.map(function (l) { return "<th>" + l + " pertes</th>"; }).join("") + "</tr></thead>";
-    var body = risks.map(function (r) {
-      return "<tr" + (r === risk ? ' class="hl"' : "") + "><td>" + pct(r, r < 1 ? 2 : 0) + "</td>" + lens.map(function (l) {
-        var dd = 1 - Math.pow(1 - r / 100, l), back = dd < 1 ? (1 / (1 - dd) - 1) * 100 : Infinity;
-        var cls = dd >= 0.3 ? "cl" : (dd >= 0.15 ? "cw" : "cg");
-        return '<td class="' + cls + '">' + pct(-dd * 100, 1) + "<br><small>+" + nf(0).format(back) + " % pour revenir</small></td>";
-      }).join("") + "</tr>";
-    }).join("");
-    $("ser-dd").innerHTML = head + "<tbody>" + body + "</tbody>";
-
-    var longest = expectedLongest(n, q);
-    var worstK = Math.ceil(longest);
-    var hit = risk > 0 ? (1 - Math.pow(1 - risk / 100, worstK)) * 100 : NaN;
-    var v = $("ser-verdict"), cls = hit > 25 ? "bad" : (hit > 12 ? "mid" : "good");
-    v.className = "verdict " + cls;
-    v.innerHTML = "<strong>Sur " + nf(0).format(n) + " trades, attendez-vous à environ " + nf(0).format(worstK) + " pertes d'affilée</strong><p>" +
-      "C'est la pire série typique avec " + pct(wr * 100, 0) + " de réussite. À " + pct(risk, risk < 1 ? 2 : 1) + " par trade, elle coûte " + pct(hit, 1) +
-      " du capital. " + (cls === "good" ? "Encaissable : quand elle arrive, ne changez rien." : (cls === "mid" ? "Ça se traverse, mais c'est le moment où l'on est tenté de doubler la mise ou de tout arrêter. Écrivez dès maintenant ce que vous ferez." : "Trop lourd. Une série normale vous met dans un trou difficile à remonter. Baissez le risque par trade.")) + "</p>";
+  function setupCanvas(cv) { var dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h); return { ctx: ctx, w: w, h: h }; }
+  function ticks(lo, hi, c) { var sp = hi - lo || 1, st = Math.pow(10, Math.floor(Math.log10(sp / c))), e = sp / c / st; if (e >= 7.5) st *= 10; else if (e >= 3.5) st *= 5; else if (e >= 1.5) st *= 2; var o = []; for (var v = Math.ceil(lo / st) * st; v <= hi + 1e-9; v += st) o.push(v); return o; }
+  function sm(v) { var a = Math.abs(v); if (a >= 1e6) return fx(v / 1e6, 1) + " M"; if (a >= 1e4) return fx(v / 1e3, 0) + " k"; return fx(v, 0); }
+  function drawSim() {
+    var cv = $("s-chart"); if (!simData || !cv.clientWidth) return;
+    var c = setupCanvas(cv), ctx = c.ctx, d = simData, pad = { l: 46, r: 10, t: 10, b: 24 }, W = c.w - pad.l - pad.r, H = c.h - pad.t - pad.b;
+    var lo = Math.min(d.ruinLine, Math.min.apply(null, d.B.p5)), hi = Math.max.apply(null, d.B.p95); lo = Math.max(0, lo - (hi - lo) * .05); hi += (hi - lo) * .04;
+    var X = function (t) { return pad.l + t / d.n * W; }, Y = function (v) { return pad.t + (1 - (v - lo) / (hi - lo)) * H; };
+    var mu = css("--muted"), ln = css("--line"), ac = css("--accent"), lo2 = css("--loss");
+    ctx.font = "10.5px " + css("--f-data"); ctx.fillStyle = mu; ctx.strokeStyle = ln; ctx.lineWidth = 1;
+    ticks(lo, hi, 4).forEach(function (v) { var y = Math.round(Y(v)) + .5; ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + W, y); ctx.stroke(); ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.fillText(sm(v), pad.l - 6, y); });
+    ctx.textAlign = "center"; ctx.textBaseline = "top"; ticks(0, d.n, 5).forEach(function (t) { ctx.fillText(fx(t, 0), X(t), pad.t + H + 7); });
+    function band(a, b, al) { ctx.beginPath(); d.xs.forEach(function (t, i) { i ? ctx.lineTo(X(t), Y(a[i])) : ctx.moveTo(X(t), Y(a[i])); }); for (var i = d.xs.length - 1; i >= 0; i--) ctx.lineTo(X(d.xs[i]), Y(b[i])); ctx.closePath(); ctx.globalAlpha = al; ctx.fillStyle = ac; ctx.fill(); ctx.globalAlpha = 1; }
+    band(d.B.p5, d.B.p95, .16); band(d.B.p25, d.B.p75, .32);
+    function path(arr, col, w, al) { ctx.beginPath(); d.xs.forEach(function (t, i) { i ? ctx.lineTo(X(t), Y(arr[i])) : ctx.moveTo(X(t), Y(arr[i])); }); ctx.strokeStyle = col; ctx.lineWidth = w; ctx.globalAlpha = al; ctx.stroke(); ctx.globalAlpha = 1; }
+    d.samples.forEach(function (s) { path(s, mu, 1, .45); }); path(d.B.p50, ac, 2.5, 1);
+    ctx.setLineDash([5, 4]); ctx.strokeStyle = lo2; ctx.lineWidth = 1.5; var ry = Y(d.ruinLine); ctx.beginPath(); ctx.moveTo(pad.l, ry); ctx.lineTo(pad.l + W, ry); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = lo2; ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.fillText("seuil « mort »", pad.l + 4, ry - 3);
+    var lx = X(d.n), ly = Y(d.B.p50[d.B.p50.length - 1]); ctx.fillStyle = ac; ctx.beginPath(); ctx.arc(lx - 1, ly, 4, 0, 2 * Math.PI); ctx.fill();
   }
-  $("f-ser").addEventListener("input", function () { renderSeries(); save(); });
+  function drawStreak() {
+    var cv = $("s-streak"); if (!simData || !cv.clientWidth) return;
+    var c = setupCanvas(cv), ctx = c.ctx, st = simData.streaks, mx = 5; for (var i = 0; i < st.length; i++) if (st[i] > mx) mx = st[i];
+    var cnt = new Array(mx + 1).fill(0); for (i = 0; i < st.length; i++) cnt[st[i]]++;
+    var top = Math.max.apply(null, cnt), pad = { l: 34, r: 6, t: 8, b: 22 }, W = c.w - pad.l - pad.r, H = c.h - pad.t - pad.b, bw = W / (mx + 1);
+    var mu = css("--muted"), ln = css("--line"), lo = css("--loss");
+    ctx.font = "10.5px " + css("--f-data"); ctx.strokeStyle = ln; ctx.fillStyle = mu;
+    ticks(0, top / st.length * 100, 3).forEach(function (v) { var y = Math.round(pad.t + H - v / 100 * st.length / top * H) + .5; ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + W, y); ctx.stroke(); ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.fillText(fx(v, 0) + "%", pad.l - 5, y); });
+    var every = Math.ceil((mx + 1) / 14);
+    for (var k = 0; k <= mx; k++) { var h = cnt[k] / top * H, x = pad.l + k * bw; ctx.fillStyle = lo; ctx.globalAlpha = .25 + .75 * k / mx; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x + 1.5, pad.t + H - h, Math.max(1, bw - 3), h, 3); else ctx.rect(x + 1.5, pad.t + H - h, Math.max(1, bw - 3), h); ctx.fill(); ctx.globalAlpha = 1; if (k % every === 0) { ctx.fillStyle = mu; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText(String(k), x + bw / 2, pad.t + H + 6); } }
+  }
 
-  // =================== EMOTIONS ===================
-  function renderEmotions() {
-    var wr = num("emo-wr") / 100, R = num("emo-rr"), c = clamp(num("emo-cut") || 0, 0, 100) / 100, cr = num("emo-cutr") || 0,
-        m = clamp(num("emo-move") || 0, 0, 100) / 100, mr = Math.max(1, num("emo-mover") || 1), n = Math.max(1, Math.round(num("emo-trades") || 100)), oneR = num("emo-r") || 0;
-    if (!(wr > 0 && wr < 1 && R > 0)) return;
-    var planned = wr * R - (1 - wr);
-    var lostCut = wr * c * (R - cr);
-    var lostMove = (1 - wr) * m * (mr - 1);
-    var actual = planned - lostCut - lostMove;
-    var avgWin = (1 - c) * R + c * cr, avgLoss = (1 - m) + m * mr;
-    var beActual = avgLoss / (avgWin + avgLoss);
-    $("emo-n").textContent = nf(0).format(n);
-
-    $("emo-kpis").innerHTML =
-      kpi("Plan", rr(planned * n, 1), money(planned * n * oneR, 0) + " sur " + n + " trades", planned > 0 ? "gain" : "loss") +
-      kpi("Réalité", rr(actual * n, 1), money(actual * n * oneR, 0), actual > 0 ? "gain" : "loss") +
-      kpi("Coût des émotions", rr(-(lostCut + lostMove) * n, 1), money(-(lostCut + lostMove) * n * oneR, 0), "loss") +
-      kpi("RR réellement obtenu", nf(2).format(avgWin / avgLoss) + " : 1", "Gain moyen " + nf(2).format(avgWin) + "R, perte " + nf(2).format(avgLoss) + "R") +
-      kpi("Win rate pour survivre", pct(beActual * 100, 1), "Contre " + pct(100 / (1 + R), 1) + " avec le plan", beActual > wr ? "loss" : "warn");
-
+  // =================== MENTAL ===================
+  function renderMental() {
+    var e = S.emo, active = document.activeElement;
+    [["m-cut", e.cut], ["m-cutr", e.cutr], ["m-move", e.move], ["m-mover", e.mover]].forEach(function (p) { if ($(p[0]) !== active) $(p[0]).value = p[1]; });
+    var wr = S.sim.wr / 100, rr = S.sim.rr, c = clamp(e.cut, 0, 100) / 100, cr = e.cutr || 0, m = clamp(e.move, 0, 100) / 100, mr = Math.max(1, e.mover || 1), r1 = oneR(), n = 100;
+    var planned = wr * rr - (1 - wr), lostCut = wr * c * Math.max(0, rr - cr), lostMove = (1 - wr) * m * (mr - 1), actual = planned - lostCut - lostMove;
+    var kept = planned > 0 ? clamp(actual / planned, 0, 1) : 0;
+    setRing("r-plan", kept, kept > .8 ? "good" : (kept > .4 ? "mid" : "bad"), planned > 0 ? pct(kept * 100, 0) : "—", R(actual * n, 0) + " sur " + R(planned * n, 0));
+    var trades = 100, q = 1 - wr, p8 = probRun(trades, q, 8);
+    setRing("r-run8", p8, p8 > .5 ? "mid" : "good", pct(p8 * 100, 0), "sur 100 trades");
+    var worst = Math.ceil(expectedLongest(trades, q)), cost = 1 - Math.pow(1 - S.settings.riskPct / 100, worst);
+    setRing("r-cost", cost / .3, cost > .25 ? "bad" : (cost > .12 ? "mid" : "good"), pct(-cost * 100, 1), worst + " pertes à " + pct(S.settings.riskPct, 1));
     var maxAbs = Math.max(Math.abs(planned), Math.abs(actual), lostCut, lostMove) * n || 1;
-    function bar(label, val, color) {
-      var w = Math.abs(val) / maxAbs * 50, left = val >= 0 ? 50 : 50 - w;
-      return '<div class="bar"><span>' + label + '</span><div class="track"><div class="fill" style="left:' + left + "%;width:" + w + "%;background:var(" + color + ')"></div>' +
-        '<div class="fill" style="left:50%;width:1px;background:var(--muted)"></div></div><span class="val">' + rr(val, 1) + "</span></div>";
-    }
-    $("emo-bars").innerHTML =
-      bar("Résultat du plan", planned * n, "--gain") +
-      bar("Gains coupés tôt", -lostCut * n, "--warn") +
-      bar("Stops élargis", -lostMove * n, "--loss") +
-      bar("Résultat réel", actual * n, actual >= 0 ? "--accent" : "--loss");
-
-    var v = $("emo-verdict"), share = planned > 0 ? (lostCut + lostMove) / planned : 1;
+    function bar(label, v, col) { var w = Math.abs(v) / maxAbs * 50, left = v >= 0 ? 50 : 50 - w; return '<div class="bar"><span>' + label + '</span><div class="track"><div class="fill" style="left:' + left + "%;width:" + w + "%;background:var(" + col + ')"></div><div class="zero"></div></div><span class="val">' + R(v, 0) + "</span></div>"; }
+    $("m-bars").innerHTML = bar("Plan", planned * n, "--gain") + bar("Gains coupés tôt", -lostCut * n, "--warn") + bar("Stops élargis", -lostMove * n, "--loss") + bar("Réalité", actual * n, actual >= 0 ? "--accent" : "--loss") +
+      '<p class="note">Soit ' + smoney(actual * n * r1, 0) + " au lieu de " + smoney(planned * n * r1, 0) + " avec 1R = " + money(r1) + ".</p>";
     var biggest = lostCut >= lostMove ? "couper les gagnants trop tôt" : "refuser la perte et reculer le stop";
-    if (actual <= 0 && planned > 0) {
-      v.className = "verdict bad";
-      v.innerHTML = "<strong>Votre stratégie gagne. C'est l'exécution qui perd.</strong><p>Le plan rapporte " + rr(planned * n, 1) + " sur " + n + " trades, mais en " + biggest +
-        " vous finissez à " + rr(actual * n, 1) + ". Le problème n'est pas l'analyse : c'est d'accepter la perte prévue et de laisser courir le gain prévu.</p>";
-    } else if (planned <= 0) {
-      v.className = "verdict bad";
-      v.innerHTML = "<strong>Le plan lui-même ne gagne pas</strong><p>Avec " + pct(wr * 100, 0) + " de réussite il faut au moins " + nf(2).format((1 - wr) / wr) + "R par gagnant. Travaillez la stratégie avant la discipline.</p>";
-    } else if (share > 0.25) {
-      v.className = "verdict mid";
-      v.innerHTML = "<strong>Les émotions mangent " + pct(share * 100, 0) + " de votre avantage</strong><p>Le plus gros poste : " + biggest + ". Placez l'objectif et le stop dans l'ordre au moment de l'entrée, puis ne touchez plus au trade.</p>";
-    } else {
-      v.className = "verdict good";
-      v.innerHTML = "<strong>Exécution proche du plan</strong><p>Les écarts coûtent " + pct(share * 100, 0) + " de l'avantage. Continuez à journaliser chaque sortie anticipée.</p>";
-    }
+    if (planned <= 0) alertBox("m-alert", "bad", "Le plan lui-même ne gagne pas", "Travaillez la stratégie avant la discipline : avec " + pct(wr * 100, 0) + " de réussite il faut au moins " + fx((1 - wr) / wr, 2) + "R par gagnant.");
+    else if (actual <= 0) alertBox("m-alert", "bad", "La stratégie gagne. C'est l'exécution qui perd.", "Le plus gros poste : " + biggest + ". Accepter la perte prévue et laisser courir le gain prévu, c'est tout le travail.");
+    else if (kept < .75) alertBox("m-alert", "mid", "Les émotions mangent " + pct((1 - kept) * 100, 0) + " de votre avantage", "Le plus gros poste : " + biggest + ". Posez SL et TP à l'entrée, puis ne touchez plus au trade.");
+    else alertBox("m-alert", "good", "Exécution proche du plan", "Continuez à noter chaque sortie anticipée dans le journal.");
+    $("r-run8-lb").textContent = "Série de 8 pertes";
+
+    var ks = [3, 4, 5, 6, 8, 10, 12, 15];
+    $("m-series-note").textContent = "Avec " + pct(wr * 100, 0) + " de réussite sur 100 trades, la pire série typique est de " + worst + " pertes d'affilée.";
+    $("m-series").innerHTML = "<thead><tr><th>Série</th><th>Probabilité</th><th>Coût à " + pct(S.settings.riskPct, 1) + "</th></tr></thead><tbody>" + ks.map(function (k) {
+      var p = probRun(trades, q, k), cl = p > .75 ? "cl" : (p > .3 ? "cw" : ""), co = 1 - Math.pow(1 - S.settings.riskPct / 100, k);
+      return "<tr><td>" + k + ' pertes</td><td class="' + cl + '">' + pct(p * 100, p < .01 ? 2 : 0) + '</td><td class="l">' + pct(-co * 100, 1) + "</td></tr>";
+    }).join("") + "</tbody>";
+    var risks = [0.5, 1, 2, 3, 5, 10], my = S.settings.riskPct; if (risks.indexOf(my) < 0) { risks.push(my); risks.sort(function (a, b) { return a - b; }); }
+    var lens = [3, 5, 8, 10, 15];
+    $("m-dd").innerHTML = "<thead><tr><th>Risque</th>" + lens.map(function (l) { return "<th>" + l + " pertes</th>"; }).join("") + "</tr></thead><tbody>" + risks.map(function (r) {
+      return "<tr" + (r === my ? ' class="hl"' : "") + "><td>" + pct(r, r < 1 ? 2 : 1) + "</td>" + lens.map(function (l) {
+        var dd = 1 - Math.pow(1 - r / 100, l), back = (1 / (1 - dd) - 1) * 100, cl = dd >= .3 ? "cl" : (dd >= .15 ? "cw" : "cg");
+        return '<td class="' + cl + '">' + pct(-dd * 100, 1) + "<br><small>+" + fx(back, 0) + " % pour revenir</small></td>";
+      }).join("") + "</tr>";
+    }).join("") + "</tbody>";
+    var st = S.settings;
+    $("m-rules").innerHTML = [
+      "Je risque " + pct(st.riskPct, 2) + " par trade (" + money(oneR()) + "), jamais plus de " + pct(st.maxRiskPct, 1) + ".",
+      "Je pose le stop et l'objectif avant d'entrer. Je ne recule jamais le stop.",
+      "Je ne prends pas de trade sous " + fx(st.minRR, 1) + "R.",
+      "J'arrête la journée à −" + pct(st.dailyLossPct, 1) + " (" + money(st.capital * st.dailyLossPct / 100, 0) + "), après " + st.maxLossStreak + " pertes d'affilée ou " + st.maxTrades + " trades.",
+      "Une série de " + worst + " pertes est normale avec mon win rate. Ce n'est pas un signal pour changer de stratégie.",
+      "Après une perte : même taille, même plan. Pas de revanche."
+    ].map(function (t) { return "<li>" + t + "</li>"; }).join("");
   }
-  $("f-emo").addEventListener("input", function () { renderEmotions(); save(); });
+  [["m-cut", "cut"], ["m-cutr", "cutr"], ["m-move", "move"], ["m-mover", "mover"]].forEach(function (p) {
+    $(p[0]).addEventListener("input", function () { var v = val(p[0]); if (isFinite(v)) { S.emo[p[1]] = v; save(); renderMental(); } });
+  });
+
+  // =================== REGLAGES ===================
+  function renderSettings() {
+    var st = S.settings, active = document.activeElement;
+    document.querySelectorAll("[data-set]").forEach(function (el) { if (el !== active) el.value = st[el.dataset.set]; });
+    if (!$("g-lev").children.length) {
+      $("g-lev").innerHTML = Object.keys(CLASSES).map(function (k) { return '<div class="field"><label for="lev-' + k + '">' + CLASSES[k] + '</label><div class="unit"><input id="lev-' + k + '" data-lev="' + k + '" type="number" inputmode="decimal" min="1" step="1"><span>×</span></div></div>'; }).join("");
+      $("g-rates").innerHTML = CURR.filter(function (c) { return c !== "USD"; }).map(function (c) { return '<div class="field"><label for="rate-' + c + '">' + c + '</label><div class="unit"><input id="rate-' + c + '" data-rate="' + c + '" type="number" inputmode="decimal" min="0" step="any"><span>$</span></div></div>'; }).join("");
+      $("c-cls").innerHTML = Object.keys(CLASSES).map(function (k) { return '<option value="' + k + '">' + CLASSES[k] + "</option>"; }).join("");
+      $("c-q").innerHTML = CURR.map(function (c) { return "<option>" + c + "</option>"; }).join("");
+    }
+    document.querySelectorAll("[data-lev]").forEach(function (el) { if (el !== active) el.value = st.lev[el.dataset.lev]; });
+    document.querySelectorAll("[data-rate]").forEach(function (el) { if (el !== active) el.value = st.rates[el.dataset.rate]; });
+    $("c-list").innerHTML = S.custom.map(function (a) { return '<div class="it"><span class="tag">' + CLASSES[a.cls] + '</span><span class="ds"><b>' + esc(a.id) + "</b> · " + fx(a.cs, 0) + " × " + a.pip + " " + a.quote + '</span><button type="button" class="ghost" data-del="' + esc(a.id) + '" style="padding:4px 8px" aria-label="Supprimer">×</button></div>'; }).join("");
+    applyTheme();
+  }
+  document.addEventListener("input", function (e) {
+    var el = e.target, v = parseFloat(String(el.value).replace(",", "."));
+    if (el.dataset.set) { if (isFinite(v) && v >= 0) { S.settings[el.dataset.set] = v; if (el.dataset.set === "riskPct") S.trade.riskPct = v; if (el.dataset.set === "winRate") { S.trade.wr = v; S.sim.wr = v; } save(); renderHeader(); } }
+    else if (el.dataset.lev) { if (v > 0) { S.settings.lev[el.dataset.lev] = v; save(); } }
+    else if (el.dataset.rate) { if (v > 0) { S.settings.rates[el.dataset.rate] = v; save(); } }
+  });
+  $("g-theme").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) { S.settings.theme = b.dataset.v; save(); applyTheme(); setTimeout(function () { drawSim(); drawStreak(); renderTrade(); }, 30); } });
+  $("c-add").addEventListener("click", function () {
+    var id = $("c-id").value.trim().toUpperCase().replace(/[^A-Z0-9._\-\/]/g, ""), cs = val("c-cs"), pip = val("c-pip"), price = val("c-price"), step = val("c-step"), dec = Math.round(clamp(val("c-dec") || 2, 0, 6));
+    var err = !id ? "Donnez un symbole." : (!(cs > 0) ? "La taille du contrat doit être positive." : (!(pip > 0) ? "La taille du pip doit être positive." : (!(price > 0) ? "Indiquez un prix." : (!(step > 0) ? "Le pas de lot doit être positif." : ""))));
+    if (err) { $("c-err").hidden = false; $("c-err").textContent = err; return; }
+    $("c-err").hidden = true;
+    S.custom = S.custom.filter(function (a) { return a.id !== id; });
+    var a = A(id, $("c-id").value.trim() + " (perso)", $("c-cls").value, cs, pip, $("c-q").value, dec, price, step, step);
+    S.custom.push(a); save(); renderSettings(); $("c-id").value = "";
+    pickAsset(id);
+  });
+  $("c-list").addEventListener("click", function (e) { var b = e.target.closest("[data-del]"); if (!b) return; S.custom = S.custom.filter(function (a) { return a.id !== b.dataset.del; }); if (S.trade.asset === b.dataset.del) pickAsset("EURUSD"); save(); renderSettings(); });
+  $("g-reset-box").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    if (b.id === "g-reset") { this.innerHTML = '<span class="note">Effacer réglages, trade et journal ?</span><button type="button" class="danger" id="g-yes">Oui, tout effacer</button><button type="button" id="g-no">Annuler</button>'; }
+    else if (b.id === "g-yes") { S = clone(DEFAULTS); save(); renderAll(); this.innerHTML = '<button type="button" class="danger" id="g-reset">Tout réinitialiser</button>'; }
+    else if (b.id === "g-no") { this.innerHTML = '<button type="button" class="danger" id="g-reset">Tout réinitialiser</button>'; }
+  });
 
   // =================== ROUTING ===================
-  var views = ["position", "simulation", "series", "emotions"];
+  var VIEWS = ["trade", "jour", "simuler", "mental", "reglages"];
+  function current() { var h = (location.hash || "").slice(1); return VIEWS.indexOf(h) >= 0 ? h : "trade"; }
   function route() {
-    var h = (location.hash || "").replace("#", "");
-    if (views.indexOf(h) < 0) h = "position";
-    views.forEach(function (v) { $("view-" + v).hidden = v !== h; });
-    document.querySelectorAll("nav.tabs a").forEach(function (a) { if (a.dataset.view === h) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
-    if (h === "simulation") { if (!simData) runSim(); else { drawSim(); drawStreak(); } }
-    try { localStorage.setItem(KEY + "-tab", h); } catch (e) {}
+    var v = current();
+    VIEWS.forEach(function (x) { $("view-" + x).hidden = x !== v; });
+    document.querySelectorAll("nav.tabbar a").forEach(function (a) { if (a.dataset.view === v) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+    if (v === "trade") renderTrade(); else if (v === "jour") renderJour(); else if (v === "simuler") runSim(); else if (v === "mental") renderMental(); else renderSettings();
+    renderHeader();
+    window.scrollTo(0, 0);
   }
+  function renderAll() { applyTheme(); renderSettings(); route(); }
   window.addEventListener("hashchange", route);
-  window.addEventListener("resize", function () { drawSim(); drawStreak(); });
-  try { window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { drawSim(); drawStreak(); }); } catch (e) {}
-  new MutationObserver(function () { drawSim(); drawStreak(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-
-  $("f-pos").addEventListener("input", function () { renderPosition(); save(); });
-  $("f-pos").addEventListener("change", function () { renderPosition(); save(); });
+  var rT = null;
+  window.addEventListener("resize", function () { clearTimeout(rT); rT = setTimeout(function () { drawSim(); drawStreak(); if (current() === "trade") renderTrade(); }, 120); });
+  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { applyTheme(); drawSim(); drawStreak(); }); } catch (e) {}
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) { renderHeader(); if (current() === "jour") renderJour(); } });
   document.querySelectorAll("form").forEach(function (f) { f.addEventListener("submit", function (e) { e.preventDefault(); }); });
 
-  load();
-  if (!location.hash) { try { var t = localStorage.getItem(KEY + "-tab"); if (t && views.indexOf(t) >= 0 && t !== "position") history.replaceState(null, "", "#" + t); } catch (e) {} }
-  renderPosition(); renderSeries(); renderEmotions();
-  route();
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { drawSim(); drawStreak(); });
+  renderAll();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (current() === "trade") renderTrade(); drawSim(); drawStreak(); });
+
+  if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+  }
 })();
 </script>
 </body>
