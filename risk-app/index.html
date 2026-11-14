@@ -1,0 +1,794 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rester Vivant</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a trading-desk ledger — sticky tab bar, inputs on the left, verdict and numbers on the right, stacking on phones. */
+:root {
+  --bg: #EEF1F4;
+  --surface: #FFFFFF;
+  --sunk: #F5F7F9;
+  --ink: #142033;
+  --muted: #5A6678;
+  --line: #D5DCE4;
+  --accent: #2F4F8F;
+  --accent-soft: #E1E8F5;
+  --gain: #1E7F52;
+  --gain-soft: #DDF1E6;
+  --loss: #B83A32;
+  --loss-soft: #F8E1DE;
+  --warn: #9A6208;
+  --warn-soft: #F7EBD3;
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-data: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F151D; --surface: #17202B; --sunk: #121A23; --ink: #E4E9F0; --muted: #93A0B2; --line: #2A3646;
+    --accent: #8FAAE6; --accent-soft: #1F2D45; --gain: #4CC48A; --gain-soft: #163428; --loss: #F07A6E; --loss-soft: #3A1E1C;
+    --warn: #E0A84A; --warn-soft: #3A2C14; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F151D; --surface: #17202B; --sunk: #121A23; --ink: #E4E9F0; --muted: #93A0B2; --line: #2A3646;
+  --accent: #8FAAE6; --accent-soft: #1F2D45; --gain: #4CC48A; --gain-soft: #163428; --loss: #F07A6E; --loss-soft: #3A1E1C;
+  --warn: #E0A84A; --warn-soft: #3A2C14; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+header.top .wrap { padding-block: 22px 0; display: flex; flex-direction: column; gap: 6px; }
+.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+h1 { font-family: var(--f-display); font-weight: 800; font-size: clamp(26px, 4vw, 34px); letter-spacing: -0.02em; margin: 0; }
+.tagline { color: var(--muted); margin: 0; max-width: 62ch; }
+nav.tabs { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+nav.tabs .wrap { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+nav.tabs a {
+  font-family: var(--f-display); font-weight: 700; font-size: 14px; color: var(--muted); text-decoration: none;
+  padding: 12px 12px 11px; border-bottom: 3px solid transparent; white-space: nowrap;
+}
+nav.tabs a:hover { color: var(--ink); }
+nav.tabs a[aria-current="page"] { color: var(--accent); border-bottom-color: var(--accent); }
+nav.tabs a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+main .wrap { padding-block: 24px 48px; }
+section.view { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 820px) { section.view { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.panel h2 { font-family: var(--f-display); font-size: 17px; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.panel h3 { font-family: var(--f-display); font-size: 15px; margin: 0; }
+.eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.stack { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 13px; font-weight: 600; }
+.hint { font-size: 12px; color: var(--muted); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+input, select {
+  font: 500 15px/1.2 var(--f-data); color: var(--ink); background: var(--sunk); border: 1px solid var(--line); border-radius: 7px;
+  padding: 9px 10px; width: 100%; min-width: 0; font-variant-numeric: tabular-nums;
+}
+select { font-family: var(--f-body); }
+.unit { position: relative; }
+.unit input { padding-right: 34px; }
+.unit span { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); font: 500 13px var(--f-data); pointer-events: none; }
+button {
+  font: 600 14px var(--f-body); border-radius: 7px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  padding: 9px 12px; cursor: pointer;
+}
+button:hover { border-color: var(--accent); color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+button.primary:hover { filter: brightness(1.08); color: var(--surface); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { padding: 6px 10px; font-size: 13px; }
+.chips button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.kpi { background: var(--sunk); border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kpi .k { font-size: 12px; color: var(--muted); }
+.kpi .v { font: 600 21px/1.2 var(--f-data); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.kpi .s { font-size: 12px; color: var(--muted); }
+.kpi.loss .v { color: var(--loss); } .kpi.gain .v { color: var(--gain); } .kpi.warn .v { color: var(--warn); }
+.verdict { border-radius: 8px; padding: 14px 16px; border: 1px solid var(--line); background: var(--sunk); display: flex; flex-direction: column; gap: 6px; }
+.verdict strong { font-family: var(--f-display); font-size: 16px; }
+.verdict p { margin: 0; }
+.verdict.good { background: var(--gain-soft); border-color: transparent; } .verdict.good strong { color: var(--gain); }
+.verdict.bad { background: var(--loss-soft); border-color: transparent; } .verdict.bad strong { color: var(--loss); }
+.verdict.mid { background: var(--warn-soft); border-color: transparent; } .verdict.mid strong { color: var(--warn); }
+.pill { display: inline-block; font: 600 11px var(--f-body); letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; }
+.pill.good { background: var(--gain-soft); color: var(--gain); } .pill.bad { background: var(--loss-soft); color: var(--loss); } .pill.mid { background: var(--warn-soft); color: var(--warn); }
+.tablebox { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { font-size: 12px; font-weight: 600; color: var(--muted); }
+td { font-family: var(--f-data); font-variant-numeric: tabular-nums; }
+td.g { color: var(--gain); } td.l { color: var(--loss); } td.w { color: var(--warn); }
+td.cl { background: var(--loss-soft); color: var(--loss); } td.cw { background: var(--warn-soft); color: var(--warn); } td.cg { background: var(--gain-soft); color: var(--gain); }
+tr.hl td { background: var(--accent-soft); }
+.chart { width: 100%; height: 300px; display: block; }
+.chart.small { height: 200px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.oath { font-size: 16px; line-height: 1.6; margin: 0; }
+.oath b { font-family: var(--f-data); color: var(--loss); }
+.oath b.g { color: var(--gain); }
+.note { font-size: 13px; color: var(--muted); margin: 0; max-width: 70ch; }
+.bars { display: flex; flex-direction: column; gap: 10px; }
+.bar { display: grid; grid-template-columns: 150px 1fr 90px; gap: 10px; align-items: center; font-size: 13px; }
+@media (max-width: 480px) { .bar { grid-template-columns: 1fr 70px; } .bar .track { grid-column: 1 / -1; grid-row: 2; } }
+.track { height: 14px; background: var(--sunk); border: 1px solid var(--line); border-radius: 4px; position: relative; overflow: hidden; }
+.track .fill { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+.bar .val { font-family: var(--f-data); text-align: right; font-variant-numeric: tabular-nums; }
+.err { color: var(--loss); font-size: 13px; margin: 0; }
+footer { color: var(--muted); font-size: 12px; }
+footer .wrap { padding-block: 0 32px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><h1>Rester Vivant</h1><span class="eyebrow">Gestion du risque</span></div>
+    <p class="tagline">Chiffrez la perte avant d'entrer, regardez les séries de pertes en face, et laissez le plan travailler. Une perte prévue est un coût, pas une erreur.</p>
+  </div>
+</header>
+<nav class="tabs" aria-label="Modules">
+  <div class="wrap">
+    <a href="#position" data-view="position">Position</a>
+    <a href="#simulation" data-view="simulation">Simulation</a>
+    <a href="#series" data-view="series">Séries de pertes</a>
+    <a href="#emotions" data-view="emotions">Coût des émotions</a>
+  </div>
+</nav>
+
+<main>
+<div class="wrap">
+
+<!-- ============ POSITION ============ -->
+<section class="view" id="view-position">
+  <form class="panel" id="f-pos" autocomplete="off">
+    <h2>Le trade</h2>
+    <div class="field">
+      <label for="pos-capital">Capital</label>
+      <div class="unit"><input id="pos-capital" type="number" step="any" min="0" value="10000"><span>$</span></div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="pos-risk">Risque</label>
+        <div class="unit"><input id="pos-risk" type="number" step="0.05" min="0" value="1"><span>%</span></div>
+      </div>
+      <div class="field">
+        <label for="pos-riskusd">soit</label>
+        <div class="unit"><input id="pos-riskusd" type="number" step="any" min="0" value="100"><span>$</span></div>
+      </div>
+    </div>
+    <div class="field">
+      <label for="pos-dir">Sens</label>
+      <select id="pos-dir"><option value="long">Achat (long)</option><option value="short">Vente (short)</option></select>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="pos-entry">Entrée</label><input id="pos-entry" type="number" step="any" value="100"></div>
+      <div class="field"><label for="pos-stop">Stop</label><input id="pos-stop" type="number" step="any" value="98"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="pos-target">Objectif</label><input id="pos-target" type="number" step="any" value="105"></div>
+      <div class="field"><label for="pos-wr">Win rate estimé</label><div class="unit"><input id="pos-wr" type="number" step="1" min="1" max="99" value="45"><span>%</span></div></div>
+    </div>
+    <div class="field">
+      <label for="pos-fees">Frais aller-retour</label>
+      <div class="unit"><input id="pos-fees" type="number" step="any" min="0" value="0"><span>$</span></div>
+      <span class="hint">Commissions totales du trade, ajoutées à la perte et retirées du gain.</span>
+    </div>
+    <p class="err" id="pos-err" hidden></p>
+    <button type="button" class="primary" id="pos-send">Simuler 200 trades comme celui-ci</button>
+  </form>
+
+  <div class="stack">
+    <div class="panel">
+      <span class="eyebrow">Avant d'entrer</span>
+      <p class="oath" id="pos-oath"></p>
+    </div>
+    <div class="kpis" id="pos-kpis"></div>
+    <div class="panel">
+      <h2>Échelle du trade en R</h2>
+      <p class="note">1R = ce que vous perdez si le stop est touché. Chaque palier montre le prix et le résultat. C'est la grille qui vous dit quoi ne pas faire : sortir à +0,5R quand le plan dit +2,5R.</p>
+      <div class="tablebox"><table id="pos-ladder"></table></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SIMULATION ============ -->
+<section class="view" id="view-simulation" hidden>
+  <form class="panel" id="f-sim" autocomplete="off">
+    <h2>Le scénario</h2>
+    <div class="field">
+      <span class="eyebrow">Profils</span>
+      <div class="chips" id="sim-presets">
+        <button type="button" data-p="0.5">Prudent 0,5 %</button>
+        <button type="button" data-p="1">Standard 1 %</button>
+        <button type="button" data-p="2">Agressif 2 %</button>
+        <button type="button" data-p="5">Casino 5 %</button>
+      </div>
+    </div>
+    <div class="field"><label for="sim-capital">Capital de départ</label><div class="unit"><input id="sim-capital" type="number" step="any" min="1" value="10000"><span>$</span></div></div>
+    <div class="row2">
+      <div class="field"><label for="sim-risk">Risque / trade</label><div class="unit"><input id="sim-risk" type="number" step="0.1" min="0.01" value="1"><span>%</span></div></div>
+      <div class="field"><label for="sim-rr">RR moyen</label><div class="unit"><input id="sim-rr" type="number" step="0.1" min="0.1" value="2"><span>R</span></div></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="sim-wr">Win rate</label><div class="unit"><input id="sim-wr" type="number" step="1" min="1" max="99" value="40"><span>%</span></div></div>
+      <div class="field"><label for="sim-trades">Nombre de trades</label><input id="sim-trades" type="number" step="10" min="10" max="1000" value="200"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="sim-ruin">« Mort » à −</label><div class="unit"><input id="sim-ruin" type="number" step="1" min="5" max="95" value="30"><span>%</span></div></div>
+      <div class="field"><label for="sim-runs">Simulations</label><select id="sim-runs"><option>500</option><option selected>2000</option><option>5000</option></select></div>
+    </div>
+    <div class="field">
+      <label for="sim-mode">Taille du risque</label>
+      <select id="sim-mode">
+        <option value="pct">% du capital du moment (se réduit en drawdown)</option>
+        <option value="fixed">Montant fixe en $ (calculé sur le départ)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="sim-wrsd">Incertitude sur le win rate</label>
+      <div class="unit"><input id="sim-wrsd" type="number" step="1" min="0" max="20" value="5"><span>pts</span></div>
+      <span class="hint">Votre vrai win rate n'est jamais connu. Chaque simulation tire un win rate autour du vôtre (± cet écart-type).</span>
+    </div>
+    <button type="button" class="primary" id="sim-run">Relancer</button>
+  </form>
+
+  <div class="stack">
+    <div class="verdict" id="sim-verdict"></div>
+    <div class="kpis" id="sim-kpis"></div>
+    <div class="panel">
+      <h2>Trajectoires possibles du capital</h2>
+      <canvas class="chart" id="sim-chart" role="img" aria-label="Éventail des trajectoires du capital"></canvas>
+      <div class="legend">
+        <span><i style="background:var(--accent);opacity:.18"></i>5 % – 95 % des cas</span>
+        <span><i style="background:var(--accent);opacity:.38"></i>25 % – 75 %</span>
+        <span><i style="background:var(--accent)"></i>Médiane</span>
+        <span><i style="background:var(--muted)"></i>Quelques parcours réels</span>
+        <span><i style="background:var(--loss)"></i>Seuil « mort »</span>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Plus longue série de pertes par simulation</h2>
+      <p class="note" id="sim-streaknote"></p>
+      <canvas class="chart small" id="sim-streak" role="img" aria-label="Distribution de la plus longue série de pertes"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SERIES ============ -->
+<section class="view" id="view-series" hidden>
+  <form class="panel" id="f-ser" autocomplete="off">
+    <h2>Les séries arrivent</h2>
+    <p class="note">Même une stratégie gagnante enchaîne des pertes. La question n'est pas « si » mais « combien d'affilée » et « est-ce que mon risque me laisse en vie ».</p>
+    <div class="row2">
+      <div class="field"><label for="ser-wr">Win rate</label><div class="unit"><input id="ser-wr" type="number" step="1" min="1" max="99" value="40"><span>%</span></div></div>
+      <div class="field"><label for="ser-trades">Sur combien de trades</label><input id="ser-trades" type="number" step="10" min="5" max="5000" value="100"></div>
+    </div>
+    <div class="field"><label for="ser-risk">Mon risque / trade</label><div class="unit"><input id="ser-risk" type="number" step="0.1" min="0.01" value="1"><span>%</span></div></div>
+  </form>
+
+  <div class="stack">
+    <div class="verdict" id="ser-verdict"></div>
+    <div class="panel">
+      <h2>Probabilité de vivre au moins une série de N pertes</h2>
+      <div class="tablebox"><table id="ser-prob"></table></div>
+    </div>
+    <div class="panel">
+      <h2>Ce qu'il reste du capital après N pertes d'affilée</h2>
+      <p class="note">Perte cumulée (risque en % du capital du moment), puis le gain nécessaire pour revenir à zéro. Votre ligne est surlignée.</p>
+      <div class="tablebox"><table id="ser-dd"></table></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EMOTIONS ============ -->
+<section class="view" id="view-emotions" hidden>
+  <form class="panel" id="f-emo" autocomplete="off">
+    <h2>Le plan contre la réalité</h2>
+    <div class="row2">
+      <div class="field"><label for="emo-wr">Win rate</label><div class="unit"><input id="emo-wr" type="number" step="1" min="1" max="99" value="45"><span>%</span></div></div>
+      <div class="field"><label for="emo-rr">RR prévu</label><div class="unit"><input id="emo-rr" type="number" step="0.1" min="0.1" value="2"><span>R</span></div></div>
+    </div>
+    <span class="eyebrow">Couper les gains trop tôt</span>
+    <div class="row2">
+      <div class="field"><label for="emo-cut">Gagnants coupés</label><div class="unit"><input id="emo-cut" type="number" step="5" min="0" max="100" value="40"><span>%</span></div></div>
+      <div class="field"><label for="emo-cutr">Sortie moyenne</label><div class="unit"><input id="emo-cutr" type="number" step="0.1" min="0" value="0.7"><span>R</span></div></div>
+    </div>
+    <span class="eyebrow">Refuser la perte</span>
+    <div class="row2">
+      <div class="field"><label for="emo-move">Stops élargis</label><div class="unit"><input id="emo-move" type="number" step="5" min="0" max="100" value="20"><span>%</span></div></div>
+      <div class="field"><label for="emo-mover">Perte moyenne</label><div class="unit"><input id="emo-mover" type="number" step="0.1" min="1" value="1.8"><span>R</span></div></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="emo-trades">Trades</label><input id="emo-trades" type="number" step="10" min="1" value="100"></div>
+      <div class="field"><label for="emo-r">1R vaut</label><div class="unit"><input id="emo-r" type="number" step="any" min="0" value="100"><span>$</span></div></div>
+    </div>
+    <span class="hint">Remplissez avec votre journal : sur vos derniers gagnants, combien avez-vous fermés avant l'objectif ? Sur vos perdants, combien de fois avez-vous reculé le stop ?</span>
+  </form>
+
+  <div class="stack">
+    <div class="verdict" id="emo-verdict"></div>
+    <div class="kpis" id="emo-kpis"></div>
+    <div class="panel">
+      <h2>Où part l'argent, sur <span id="emo-n">100</span> trades</h2>
+      <div class="bars" id="emo-bars"></div>
+    </div>
+  </div>
+</section>
+
+</div>
+</main>
+<footer><div class="wrap">Outil d'éducation et de simulation. Ce n'est pas un conseil financier. Les probabilités supposent des trades indépendants ; les marchés réels ont des régimes qui allongent les séries.</div></footer>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var fmtCache = {};
+  function nf(d) { return fmtCache[d] || (fmtCache[d] = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d })); }
+  function money(x, d) { if (!isFinite(x)) return "—"; d = d == null ? 2 : d; return (x < 0 ? "−" : "") + nf(d).format(Math.abs(x)) + " $"; }
+  function smoney(x, d) { return (x > 0 ? "+" : "") + money(x, d); }
+  function pct(x, d) { if (!isFinite(x)) return "—"; d = d == null ? 1 : d; return (x < 0 ? "−" : "") + nf(d).format(Math.abs(x)) + " %"; }
+  function spct(x, d) { return (x > 0 ? "+" : "") + pct(x, d); }
+  function rr(x, d) { if (!isFinite(x)) return "—"; d = d == null ? 2 : d; return (x < 0 ? "−" : (x > 0 ? "+" : "")) + nf(d).format(Math.abs(x)) + " R"; }
+  function num(id) { var v = parseFloat(String($(id).value).replace(",", ".")); return isFinite(v) ? v : NaN; }
+  function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+  function kpi(label, value, sub, cls) {
+    return '<div class="kpi ' + (cls || "") + '"><span class="k">' + label + '</span><span class="v">' + value + '</span>' + (sub ? '<span class="s">' + sub + "</span>" : "") + "</div>";
+  }
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  // ---------- storage (best effort) ----------
+  var KEY = "rester-vivant-v1";
+  function save() {
+    try {
+      var data = {};
+      document.querySelectorAll("form input, form select").forEach(function (el) { data[el.id] = el.value; });
+      localStorage.setItem(KEY, JSON.stringify(data));
+    } catch (e) {}
+  }
+  function load() {
+    try {
+      var data = JSON.parse(localStorage.getItem(KEY) || "{}");
+      Object.keys(data).forEach(function (id) { var el = $(id); if (el) el.value = data[id]; });
+    } catch (e) {}
+  }
+
+  // ---------- probability: at least one run of >= k losses in n trades ----------
+  function probRun(n, q, k) {
+    if (k <= 0) return 1;
+    if (k > n) return 0;
+    var a = new Float64Array(k); a[0] = 1; var hit = 0;
+    for (var t = 0; t < n; t++) {
+      var b = new Float64Array(k), p = 1 - q;
+      for (var j = 0; j < k; j++) {
+        if (!a[j]) continue;
+        b[0] += a[j] * p;
+        if (j + 1 >= k) hit += a[j] * q; else b[j + 1] += a[j] * q;
+      }
+      a = b;
+    }
+    return hit;
+  }
+  function expectedLongest(n, q) {
+    // E[max run] = sum_k P(run >= k)
+    var s = 0;
+    for (var k = 1; k <= n; k++) { var p = probRun(n, q, k); s += p; if (p < 1e-6) break; }
+    return s;
+  }
+
+  // =================== POSITION ===================
+  var syncing = false;
+  $("pos-risk").addEventListener("input", function () {
+    if (syncing) return; syncing = true;
+    var c = num("pos-capital"), r = num("pos-risk");
+    if (isFinite(c) && isFinite(r)) $("pos-riskusd").value = +(c * r / 100).toFixed(2);
+    syncing = false;
+  });
+  $("pos-riskusd").addEventListener("input", function () {
+    if (syncing) return; syncing = true;
+    var c = num("pos-capital"), u = num("pos-riskusd");
+    if (isFinite(c) && c > 0 && isFinite(u)) $("pos-risk").value = +(u / c * 100).toFixed(3);
+    syncing = false;
+  });
+  $("pos-capital").addEventListener("input", function () {
+    var c = num("pos-capital"), r = num("pos-risk");
+    if (isFinite(c) && isFinite(r)) $("pos-riskusd").value = +(c * r / 100).toFixed(2);
+  });
+
+  var lastPos = null;
+  function renderPosition() {
+    var cap = num("pos-capital"), riskPct = num("pos-risk"), entry = num("pos-entry"), stop = num("pos-stop"),
+        target = num("pos-target"), wr = num("pos-wr") / 100, fees = num("pos-fees") || 0, dir = $("pos-dir").value;
+    var err = $("pos-err"), msg = "";
+    var sgn = dir === "long" ? 1 : -1;
+    if (!(cap > 0) || !(riskPct > 0)) msg = "Entrez un capital et un risque supérieurs à zéro.";
+    else if (!(entry > 0) || !(stop > 0) || !(target > 0)) msg = "Entrez un prix d'entrée, un stop et un objectif.";
+    else if (dir === "long" && !(stop < entry && target > entry)) msg = "En achat, le stop doit être sous l'entrée et l'objectif au-dessus.";
+    else if (dir === "short" && !(stop > entry && target < entry)) msg = "En vente, le stop doit être au-dessus de l'entrée et l'objectif en dessous.";
+    else if (!(wr > 0 && wr < 1)) msg = "Le win rate doit être entre 1 et 99 %.";
+    err.hidden = !msg; err.textContent = msg;
+    if (msg) { $("pos-kpis").innerHTML = ""; $("pos-ladder").innerHTML = ""; $("pos-oath").textContent = "Complétez le trade pour voir ce que vous acceptez de perdre."; lastPos = null; return; }
+
+    var budget = cap * riskPct / 100;
+    var dist = Math.abs(entry - stop), reach = Math.abs(target - entry);
+    var budgetForPrice = Math.max(0, budget - fees);
+    var qty = Math.floor(budgetForPrice / dist);
+    var lossAtStop = qty * dist + fees;
+    var gainAtTarget = qty * reach - fees;
+    var R = reach / dist;
+    var netR = lossAtStop > 0 ? gainAtTarget / lossAtStop : NaN;
+    var be = isFinite(netR) && netR > 0 ? 1 / (1 + netR) : NaN;
+    var exposure = qty * entry;
+    var ev = wr * gainAtTarget - (1 - wr) * lossAtStop;
+    var p5 = probRun(100, 1 - wr, 5), p8 = probRun(100, 1 - wr, 8);
+
+    if (qty < 1) {
+      err.hidden = false;
+      err.textContent = "Avec " + money(budget) + " de risque, même 1 unité dépasse votre limite (stop à " + money(dist) + " par unité" + (fees ? " + frais" : "") + "). Rapprochez le stop ou ne prenez pas ce trade.";
+      $("pos-kpis").innerHTML = ""; $("pos-ladder").innerHTML = ""; lastPos = null;
+      $("pos-oath").textContent = "Ce trade ne rentre pas dans votre risque. Le refuser fait partie du plan.";
+      return;
+    }
+
+    lastPos = { cap: cap, riskPct: riskPct, rr: netR, wr: wr };
+    $("pos-oath").innerHTML = "Si le stop est touché, je perds <b>" + money(lossAtStop) + "</b>, soit <b>" + pct(lossAtStop / cap * 100, 2) +
+      "</b> de mon capital. Je considère cet argent comme déjà dépensé. Je ne recule pas le stop, et je ne sors pas avant <b class=\"g\">" +
+      money(target, target < 10 ? 4 : 2) + "</b> sans raison écrite dans mon plan. Avec " + pct(wr * 100, 0) + " de réussite, " +
+      nf(0).format(Math.round((1 - wr) * 10)) + " trades sur 10 comme celui-ci finissent au stop, et c'est normal.";
+
+    var beCls = wr > be + 0.05 ? "gain" : (wr >= be ? "warn" : "loss");
+    $("pos-kpis").innerHTML =
+      kpi("Taille de position", nf(0).format(qty) + " u.", "Exposition " + money(exposure, 0) + " (" + pct(exposure / cap * 100, 0) + " du capital)") +
+      kpi("Perte au stop", money(-lossAtStop), pct(-lossAtStop / cap * 100, 2) + " du capital", "loss") +
+      kpi("Gain à l'objectif", money(gainAtTarget), spct(gainAtTarget / cap * 100, 2) + " du capital", "gain") +
+      kpi("Ratio R:R net", nf(2).format(netR) + " : 1", "Brut " + nf(2).format(R) + " : 1") +
+      kpi("Win rate minimum", pct(be * 100, 1), "Pour être à l'équilibre. Vous estimez " + pct(wr * 100, 0), beCls) +
+      kpi("Espérance par trade", smoney(ev), "Sur 100 trades : " + smoney(ev * 100, 0), ev > 0 ? "gain" : "loss") +
+      kpi("Série de 5 pertes", pct(p5 * 100, 0), "Chance d'en vivre une sur 100 trades", p5 > 0.5 ? "warn" : "") +
+      kpi("Série de 8 pertes", pct(p8 * 100, 0), "Coûterait " + pct((1 - Math.pow(1 - riskPct / 100, 8)) * 100, 1) + " du capital", p8 > 0.25 ? "warn" : "");
+
+    var steps = [-1, -0.5, 0, 0.5, 1, 2, 3];
+    if (steps.indexOf(Math.round(R * 100) / 100) < 0) steps.push(R);
+    steps.sort(function (a, b) { return a - b; });
+    var dec = entry < 10 ? 4 : 2;
+    var rows = steps.map(function (s) {
+      var price = entry + sgn * s * dist;
+      var pl = qty * s * dist - fees;
+      var label = s === -1 ? "Stop" : (Math.abs(s - R) < 1e-9 ? "Objectif" : (s === 0 ? "Entrée" : ""));
+      var cls = pl > 0 ? "g" : (pl < 0 ? "l" : "");
+      return '<tr' + (label === "Objectif" ? ' class="hl"' : "") + "><td>" + rr(s, 2) + (label ? " · " + label : "") + "</td><td>" + nf(dec).format(price) +
+        '</td><td class="' + cls + '">' + smoney(pl) + '</td><td class="' + cls + '">' + spct(pl / cap * 100, 2) + "</td></tr>";
+    }).join("");
+    $("pos-ladder").innerHTML = "<thead><tr><th>Palier</th><th>Prix</th><th>Résultat</th><th>% capital</th></tr></thead><tbody>" + rows + "</tbody>";
+  }
+
+  $("pos-send").addEventListener("click", function () {
+    if (!lastPos) return;
+    $("sim-capital").value = lastPos.cap;
+    $("sim-risk").value = +lastPos.riskPct.toFixed(3);
+    $("sim-rr").value = +lastPos.rr.toFixed(2);
+    $("sim-wr").value = Math.round(lastPos.wr * 100);
+    $("sim-trades").value = 200;
+    save();
+    location.hash = "simulation";
+    runSim();
+  });
+
+  // =================== SIMULATION ===================
+  var simData = null;
+  function randn() { var u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+  function quantile(sorted, p) { if (!sorted.length) return NaN; var i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo); }
+
+  function runSim() {
+    var cap = num("sim-capital"), risk = num("sim-risk") / 100, R = num("sim-rr"), wr = num("sim-wr") / 100,
+        n = Math.round(clamp(num("sim-trades") || 200, 10, 1000)), runs = parseInt($("sim-runs").value, 10),
+        ruin = clamp(num("sim-ruin") || 30, 5, 95) / 100, mode = $("sim-mode").value, wrsd = clamp(num("sim-wrsd") || 0, 0, 20) / 100;
+    if (!(cap > 0 && risk > 0 && R > 0 && wr > 0 && wr < 1)) {
+      $("sim-verdict").className = "verdict bad";
+      $("sim-verdict").innerHTML = "<strong>Paramètres incomplets</strong><p>Entrez un capital, un risque, un RR et un win rate entre 1 et 99 %.</p>";
+      return;
+    }
+    document.querySelectorAll("#sim-presets button").forEach(function (b) { b.setAttribute("aria-pressed", String(Math.abs(parseFloat(b.dataset.p) - risk * 100) < 1e-9)); });
+
+    var paths = new Float32Array(runs * (n + 1));
+    var finals = new Float64Array(runs), mdds = new Float64Array(runs), streaks = new Int32Array(runs);
+    var dead = 0, below = 0, fixedRisk = cap * risk;
+    for (var s = 0; s < runs; s++) {
+      var p = clamp(wr + wrsd * randn(), 0.01, 0.99);
+      var eq = cap, peak = cap, mdd = 0, run = 0, best = 0, died = false, off = s * (n + 1);
+      paths[off] = eq;
+      for (var t = 1; t <= n; t++) {
+        if (eq > 0) {
+          var amt = mode === "pct" ? eq * risk : fixedRisk;
+          if (Math.random() < p) { eq += amt * R; run = 0; }
+          else { eq -= amt; run++; if (run > best) best = run; }
+          if (eq < 0) eq = 0;
+        }
+        if (eq > peak) peak = eq;
+        var dd = peak > 0 ? (peak - eq) / peak : 1;
+        if (dd > mdd) mdd = dd;
+        if (!died && eq <= cap * (1 - ruin)) died = true;
+        paths[off + t] = eq;
+      }
+      finals[s] = eq; mdds[s] = mdd; streaks[s] = best;
+      if (died) dead++;
+      if (eq < cap) below++;
+    }
+    var sf = Array.from(finals).sort(function (a, b) { return a - b; });
+    var sd = Array.from(mdds).sort(function (a, b) { return a - b; });
+    var ss = Array.from(streaks).sort(function (a, b) { return a - b; });
+
+    var bands = { p5: [], p25: [], p50: [], p75: [], p95: [] }, col = new Float64Array(runs);
+    var stride = Math.max(1, Math.floor(n / 200));
+    var xs = [];
+    for (var t2 = 0; t2 <= n; t2 += stride) {
+      for (var s2 = 0; s2 < runs; s2++) col[s2] = paths[s2 * (n + 1) + t2];
+      col.sort();
+      xs.push(t2);
+      bands.p5.push(quantile(col, 0.05)); bands.p25.push(quantile(col, 0.25)); bands.p50.push(quantile(col, 0.5));
+      bands.p75.push(quantile(col, 0.75)); bands.p95.push(quantile(col, 0.95));
+    }
+    var samples = [];
+    for (var k = 0; k < 6; k++) {
+      var idx = Math.floor((k + 0.5) / 6 * runs), arr = [];
+      for (var t3 = 0; t3 <= n; t3 += stride) arr.push(paths[idx * (n + 1) + t3]);
+      samples.push(arr);
+    }
+    simData = { cap: cap, n: n, xs: xs, bands: bands, samples: samples, ruinLine: cap * (1 - ruin), streaks: streaks, runs: runs };
+
+    var E = wr * R - (1 - wr);
+    var be = 1 / (1 + R);
+    var pDead = dead / runs, pBelow = below / runs;
+    var med = quantile(sf, 0.5), p5 = quantile(sf, 0.05), p95 = quantile(sf, 0.95);
+    var ddMed = quantile(sd, 0.5), dd95 = quantile(sd, 0.95);
+    var stMed = quantile(ss, 0.5), st95 = quantile(ss, 0.95);
+
+    $("sim-kpis").innerHTML =
+      kpi("Espérance", rr(E, 2) + " / trade", "Équilibre à " + pct(be * 100, 1) + " de réussite", E > 0 ? "gain" : "loss") +
+      kpi("Capital final médian", money(med, 0), spct((med / cap - 1) * 100, 0), med >= cap ? "gain" : "loss") +
+      kpi("Pire 5 %", money(p5, 0), "Meilleur 5 % : " + money(p95, 0), p5 < cap ? "loss" : "gain") +
+      kpi("Drawdown max typique", pct(-ddMed * 100, 1), "1 cas sur 20 : " + pct(-dd95 * 100, 1), ddMed > 0.2 ? "loss" : (ddMed > 0.1 ? "warn" : "")) +
+      kpi("Chance de « mourir »", pct(pDead * 100, 1), "Toucher −" + pct(ruin * 100, 0) + " à un moment", pDead > 0.1 ? "loss" : (pDead > 0.02 ? "warn" : "gain")) +
+      kpi("Fini en perte", pct(pBelow * 100, 0), "Après " + n + " trades", pBelow > 0.3 ? "warn" : "");
+
+    var v = $("sim-verdict"), cls, title, body;
+    if (E <= 0) {
+      cls = "bad"; title = "Cette stratégie perd de l'argent, quel que soit le risque";
+      body = "Avec " + pct(wr * 100, 0) + " de réussite il faut un RR d'au moins " + nf(2).format((1 - wr) / wr) + " pour être à l'équilibre. Réduire le risque ne fait que ralentir la perte.";
+    } else if (pDead > 0.1 || dd95 > 0.5) {
+      cls = "bad"; title = "Stratégie gagnante, risque trop gros";
+      body = "L'avantage existe (" + rr(E, 2) + " par trade) mais " + pct(pDead * 100, 0) + " des parcours touchent −" + pct(ruin * 100, 0) +
+        ". Baisser le risque par trade garde le même avantage et vous laisse en vie pour l'encaisser.";
+    } else if (pDead > 0.02 || ddMed > 0.2) {
+      cls = "mid"; title = "Viable, mais les drawdowns vont faire mal";
+      body = "Attendez-vous à un drawdown d'environ " + pct(ddMed * 100, 0) + " et à " + nf(0).format(stMed) + " pertes d'affilée. Si vous savez que vous craquerez avant, baissez le risque maintenant.";
+    } else {
+      cls = "good"; title = "Vous restez vivant";
+      body = "Moins de " + pct(Math.max(pDead * 100, 0.1), 1) + " de risque de toucher −" + pct(ruin * 100, 0) + ". Vous traverserez quand même des séries de " +
+        nf(0).format(stMed) + " pertes et un drawdown d'environ " + pct(ddMed * 100, 0) + " : ils font partie du chemin, pas un signal d'arrêt.";
+    }
+    v.className = "verdict " + cls;
+    v.innerHTML = "<strong>" + title + "</strong><p>" + body + "</p>";
+    $("sim-streaknote").textContent = "Dans la moitié des simulations, la pire série atteint " + nf(0).format(stMed) + " pertes d'affilée ; dans 1 cas sur 20, " +
+      nf(0).format(st95) + " ou plus. Si votre stratégie est saine, ces séries ne veulent pas dire qu'elle est cassée.";
+    drawSim(); drawStreak();
+  }
+
+  function setupCanvas(cv) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    return { ctx: ctx, w: w, h: h };
+  }
+  function niceTicks(lo, hi, count) {
+    var span = hi - lo || 1, step = Math.pow(10, Math.floor(Math.log10(span / count))), err = span / count / step;
+    if (err >= 7.5) step *= 10; else if (err >= 3.5) step *= 5; else if (err >= 1.5) step *= 2;
+    var out = []; for (var v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(v); return out;
+  }
+  function shortMoney(v) { var a = Math.abs(v); if (a >= 1e6) return nf(1).format(v / 1e6) + " M$"; if (a >= 1e4) return nf(0).format(v / 1e3) + " k$"; return nf(0).format(v) + " $"; }
+
+  function drawSim() {
+    if (!simData) return;
+    var cv = $("sim-chart"); if (!cv.clientWidth) return;
+    var c = setupCanvas(cv), ctx = c.ctx, d = simData;
+    var pad = { l: 58, r: 12, t: 12, b: 28 }, W = c.w - pad.l - pad.r, H = c.h - pad.t - pad.b;
+    var lo = Math.min(d.ruinLine, Math.min.apply(null, d.bands.p5)), hi = Math.max.apply(null, d.bands.p95);
+    lo = Math.max(0, lo - (hi - lo) * 0.04); hi = hi + (hi - lo) * 0.04;
+    var X = function (t) { return pad.l + t / d.n * W; }, Y = function (v) { return pad.t + (1 - (v - lo) / (hi - lo)) * H; };
+    var ink = css("--muted"), line = css("--line"), acc = css("--accent"), loss = css("--loss");
+    ctx.font = "11px " + css("--f-data"); ctx.fillStyle = ink; ctx.strokeStyle = line; ctx.lineWidth = 1;
+    niceTicks(lo, hi, 5).forEach(function (v) {
+      var y = Math.round(Y(v)) + 0.5; ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + W, y); ctx.stroke();
+      ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.fillText(shortMoney(v), pad.l - 6, y);
+    });
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    niceTicks(0, d.n, 6).forEach(function (t) { ctx.fillText(nf(0).format(t), X(t), pad.t + H + 8); });
+    function band(a, b, alpha) {
+      ctx.beginPath(); d.xs.forEach(function (t, i) { var x = X(t), y = Y(a[i]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      for (var i = d.xs.length - 1; i >= 0; i--) ctx.lineTo(X(d.xs[i]), Y(b[i]));
+      ctx.closePath(); ctx.globalAlpha = alpha; ctx.fillStyle = acc; ctx.fill(); ctx.globalAlpha = 1;
+    }
+    band(d.bands.p5, d.bands.p95, 0.16); band(d.bands.p25, d.bands.p75, 0.3);
+    function path(arr, color, width, alpha) {
+      ctx.beginPath(); d.xs.forEach(function (t, i) { var x = X(t), y = Y(arr[i]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      ctx.strokeStyle = color; ctx.lineWidth = width; ctx.globalAlpha = alpha; ctx.stroke(); ctx.globalAlpha = 1;
+    }
+    d.samples.forEach(function (s) { path(s, ink, 1, 0.45); });
+    path(d.bands.p50, acc, 2.5, 1);
+    ctx.setLineDash([5, 4]); ctx.strokeStyle = loss; ctx.lineWidth = 1.5;
+    var ry = Y(d.ruinLine); ctx.beginPath(); ctx.moveTo(pad.l, ry); ctx.lineTo(pad.l + W, ry); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = loss; ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.fillText("seuil « mort »", pad.l + 4, ry - 3);
+    ctx.strokeStyle = ink; ctx.globalAlpha = 0.6; var sy = Math.round(Y(d.cap)) + 0.5; ctx.beginPath(); ctx.moveTo(pad.l, sy); ctx.lineTo(pad.l + W, sy); ctx.stroke(); ctx.globalAlpha = 1;
+    var lx = X(d.n), ly = Y(d.bands.p50[d.bands.p50.length - 1]);
+    ctx.fillStyle = acc; ctx.beginPath(); ctx.arc(lx, ly, 4, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function drawStreak() {
+    if (!simData) return;
+    var cv = $("sim-streak"); if (!cv.clientWidth) return;
+    var c = setupCanvas(cv), ctx = c.ctx, st = simData.streaks, maxK = 0;
+    for (var i = 0; i < st.length; i++) if (st[i] > maxK) maxK = st[i];
+    maxK = Math.max(maxK, 5);
+    var counts = new Array(maxK + 1).fill(0); for (i = 0; i < st.length; i++) counts[st[i]]++;
+    var top = Math.max.apply(null, counts);
+    var pad = { l: 40, r: 8, t: 10, b: 26 }, W = c.w - pad.l - pad.r, H = c.h - pad.t - pad.b, bw = W / (maxK + 1);
+    var ink = css("--muted"), line = css("--line"), loss = css("--loss");
+    ctx.font = "11px " + css("--f-data"); ctx.fillStyle = ink; ctx.strokeStyle = line;
+    niceTicks(0, top / st.length * 100, 4).forEach(function (v) {
+      var y = Math.round(pad.t + H - v / 100 * st.length / top * H) + 0.5;
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + W, y); ctx.stroke();
+      ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.fillText(nf(0).format(v) + "%", pad.l - 6, y);
+    });
+    var every = Math.ceil((maxK + 1) / 16);
+    for (var k = 0; k <= maxK; k++) {
+      var h = counts[k] / top * H, x = pad.l + k * bw;
+      ctx.fillStyle = loss; ctx.globalAlpha = 0.25 + 0.75 * (k / maxK); ctx.fillRect(x + 1, pad.t + H - h, Math.max(1, bw - 2), h); ctx.globalAlpha = 1;
+      if (k % every === 0) { ctx.fillStyle = ink; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText(String(k), x + bw / 2, pad.t + H + 8); }
+    }
+  }
+
+  $("sim-run").addEventListener("click", runSim);
+  document.querySelectorAll("#sim-presets button").forEach(function (b) {
+    b.addEventListener("click", function () { $("sim-risk").value = b.dataset.p; save(); runSim(); });
+  });
+  var simTimer = null;
+  $("f-sim").addEventListener("input", function () { clearTimeout(simTimer); simTimer = setTimeout(runSim, 250); });
+  $("f-sim").addEventListener("change", function () { clearTimeout(simTimer); simTimer = setTimeout(runSim, 50); });
+
+  // =================== SERIES ===================
+  function renderSeries() {
+    var wr = num("ser-wr") / 100, n = Math.round(clamp(num("ser-trades") || 100, 5, 5000)), risk = num("ser-risk");
+    if (!(wr > 0 && wr < 1)) return;
+    var q = 1 - wr;
+    var ks = [3, 4, 5, 6, 7, 8, 10, 12, 15];
+    var rows = ks.map(function (k) {
+      var p = probRun(n, q, k);
+      var cls = p > 0.75 ? "cl" : (p > 0.3 ? "cw" : "");
+      var cost = risk > 0 ? (1 - Math.pow(1 - risk / 100, k)) * 100 : NaN;
+      return "<tr><td>" + k + ' pertes d\'affilée</td><td class="' + cls + '">' + pct(p * 100, p < 0.01 ? 2 : 0) + "</td><td>" +
+        (p > 0 ? "1 chance sur " + nf(0).format(Math.max(1, Math.round(1 / p))) : "—") + '</td><td class="l">' + pct(-cost, 1) + "</td></tr>";
+    }).join("");
+    $("ser-prob").innerHTML = "<thead><tr><th>Série</th><th>Probabilité</th><th>Fréquence</th><th>Coût à " + pct(risk, risk < 1 ? 2 : 1) + "</th></tr></thead><tbody>" + rows + "</tbody>";
+
+    var risks = [0.25, 0.5, 1, 2, 3, 5, 10];
+    if (risk > 0 && risks.indexOf(risk) < 0) { risks.push(risk); risks.sort(function (a, b) { return a - b; }); }
+    var lens = [3, 5, 8, 10, 15];
+    var head = "<thead><tr><th>Risque / trade</th>" + lens.map(function (l) { return "<th>" + l + " pertes</th>"; }).join("") + "</tr></thead>";
+    var body = risks.map(function (r) {
+      return "<tr" + (r === risk ? ' class="hl"' : "") + "><td>" + pct(r, r < 1 ? 2 : 0) + "</td>" + lens.map(function (l) {
+        var dd = 1 - Math.pow(1 - r / 100, l), back = dd < 1 ? (1 / (1 - dd) - 1) * 100 : Infinity;
+        var cls = dd >= 0.3 ? "cl" : (dd >= 0.15 ? "cw" : "cg");
+        return '<td class="' + cls + '">' + pct(-dd * 100, 1) + "<br><small>+" + nf(0).format(back) + " % pour revenir</small></td>";
+      }).join("") + "</tr>";
+    }).join("");
+    $("ser-dd").innerHTML = head + "<tbody>" + body + "</tbody>";
+
+    var longest = expectedLongest(n, q);
+    var worstK = Math.ceil(longest);
+    var hit = risk > 0 ? (1 - Math.pow(1 - risk / 100, worstK)) * 100 : NaN;
+    var v = $("ser-verdict"), cls = hit > 25 ? "bad" : (hit > 12 ? "mid" : "good");
+    v.className = "verdict " + cls;
+    v.innerHTML = "<strong>Sur " + nf(0).format(n) + " trades, attendez-vous à environ " + nf(0).format(worstK) + " pertes d'affilée</strong><p>" +
+      "C'est la pire série typique avec " + pct(wr * 100, 0) + " de réussite. À " + pct(risk, risk < 1 ? 2 : 1) + " par trade, elle coûte " + pct(hit, 1) +
+      " du capital. " + (cls === "good" ? "Encaissable : quand elle arrive, ne changez rien." : (cls === "mid" ? "Ça se traverse, mais c'est le moment où l'on est tenté de doubler la mise ou de tout arrêter. Écrivez dès maintenant ce que vous ferez." : "Trop lourd. Une série normale vous met dans un trou difficile à remonter. Baissez le risque par trade.")) + "</p>";
+  }
+  $("f-ser").addEventListener("input", function () { renderSeries(); save(); });
+
+  // =================== EMOTIONS ===================
+  function renderEmotions() {
+    var wr = num("emo-wr") / 100, R = num("emo-rr"), c = clamp(num("emo-cut") || 0, 0, 100) / 100, cr = num("emo-cutr") || 0,
+        m = clamp(num("emo-move") || 0, 0, 100) / 100, mr = Math.max(1, num("emo-mover") || 1), n = Math.max(1, Math.round(num("emo-trades") || 100)), oneR = num("emo-r") || 0;
+    if (!(wr > 0 && wr < 1 && R > 0)) return;
+    var planned = wr * R - (1 - wr);
+    var lostCut = wr * c * (R - cr);
+    var lostMove = (1 - wr) * m * (mr - 1);
+    var actual = planned - lostCut - lostMove;
+    var avgWin = (1 - c) * R + c * cr, avgLoss = (1 - m) + m * mr;
+    var beActual = avgLoss / (avgWin + avgLoss);
+    $("emo-n").textContent = nf(0).format(n);
+
+    $("emo-kpis").innerHTML =
+      kpi("Plan", rr(planned * n, 1), money(planned * n * oneR, 0) + " sur " + n + " trades", planned > 0 ? "gain" : "loss") +
+      kpi("Réalité", rr(actual * n, 1), money(actual * n * oneR, 0), actual > 0 ? "gain" : "loss") +
+      kpi("Coût des émotions", rr(-(lostCut + lostMove) * n, 1), money(-(lostCut + lostMove) * n * oneR, 0), "loss") +
+      kpi("RR réellement obtenu", nf(2).format(avgWin / avgLoss) + " : 1", "Gain moyen " + nf(2).format(avgWin) + "R, perte " + nf(2).format(avgLoss) + "R") +
+      kpi("Win rate pour survivre", pct(beActual * 100, 1), "Contre " + pct(100 / (1 + R), 1) + " avec le plan", beActual > wr ? "loss" : "warn");
+
+    var maxAbs = Math.max(Math.abs(planned), Math.abs(actual), lostCut, lostMove) * n || 1;
+    function bar(label, val, color) {
+      var w = Math.abs(val) / maxAbs * 50, left = val >= 0 ? 50 : 50 - w;
+      return '<div class="bar"><span>' + label + '</span><div class="track"><div class="fill" style="left:' + left + "%;width:" + w + "%;background:var(" + color + ')"></div>' +
+        '<div class="fill" style="left:50%;width:1px;background:var(--muted)"></div></div><span class="val">' + rr(val, 1) + "</span></div>";
+    }
+    $("emo-bars").innerHTML =
+      bar("Résultat du plan", planned * n, "--gain") +
+      bar("Gains coupés tôt", -lostCut * n, "--warn") +
+      bar("Stops élargis", -lostMove * n, "--loss") +
+      bar("Résultat réel", actual * n, actual >= 0 ? "--accent" : "--loss");
+
+    var v = $("emo-verdict"), share = planned > 0 ? (lostCut + lostMove) / planned : 1;
+    var biggest = lostCut >= lostMove ? "couper les gagnants trop tôt" : "refuser la perte et reculer le stop";
+    if (actual <= 0 && planned > 0) {
+      v.className = "verdict bad";
+      v.innerHTML = "<strong>Votre stratégie gagne. C'est l'exécution qui perd.</strong><p>Le plan rapporte " + rr(planned * n, 1) + " sur " + n + " trades, mais en " + biggest +
+        " vous finissez à " + rr(actual * n, 1) + ". Le problème n'est pas l'analyse : c'est d'accepter la perte prévue et de laisser courir le gain prévu.</p>";
+    } else if (planned <= 0) {
+      v.className = "verdict bad";
+      v.innerHTML = "<strong>Le plan lui-même ne gagne pas</strong><p>Avec " + pct(wr * 100, 0) + " de réussite il faut au moins " + nf(2).format((1 - wr) / wr) + "R par gagnant. Travaillez la stratégie avant la discipline.</p>";
+    } else if (share > 0.25) {
+      v.className = "verdict mid";
+      v.innerHTML = "<strong>Les émotions mangent " + pct(share * 100, 0) + " de votre avantage</strong><p>Le plus gros poste : " + biggest + ". Placez l'objectif et le stop dans l'ordre au moment de l'entrée, puis ne touchez plus au trade.</p>";
+    } else {
+      v.className = "verdict good";
+      v.innerHTML = "<strong>Exécution proche du plan</strong><p>Les écarts coûtent " + pct(share * 100, 0) + " de l'avantage. Continuez à journaliser chaque sortie anticipée.</p>";
+    }
+  }
+  $("f-emo").addEventListener("input", function () { renderEmotions(); save(); });
+
+  // =================== ROUTING ===================
+  var views = ["position", "simulation", "series", "emotions"];
+  function route() {
+    var h = (location.hash || "").replace("#", "");
+    if (views.indexOf(h) < 0) h = "position";
+    views.forEach(function (v) { $("view-" + v).hidden = v !== h; });
+    document.querySelectorAll("nav.tabs a").forEach(function (a) { if (a.dataset.view === h) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+    if (h === "simulation") { if (!simData) runSim(); else { drawSim(); drawStreak(); } }
+    try { localStorage.setItem(KEY + "-tab", h); } catch (e) {}
+  }
+  window.addEventListener("hashchange", route);
+  window.addEventListener("resize", function () { drawSim(); drawStreak(); });
+  try { window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { drawSim(); drawStreak(); }); } catch (e) {}
+  new MutationObserver(function () { drawSim(); drawStreak(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  $("f-pos").addEventListener("input", function () { renderPosition(); save(); });
+  $("f-pos").addEventListener("change", function () { renderPosition(); save(); });
+  document.querySelectorAll("form").forEach(function (f) { f.addEventListener("submit", function (e) { e.preventDefault(); }); });
+
+  load();
+  if (!location.hash) { try { var t = localStorage.getItem(KEY + "-tab"); if (t && views.indexOf(t) >= 0 && t !== "position") history.replaceState(null, "", "#" + t); } catch (e) {} }
+  renderPosition(); renderSeries(); renderEmotions();
+  route();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { drawSim(); drawStreak(); });
+})();
+</script>
+</body>
+</html>
