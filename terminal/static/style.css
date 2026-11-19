@@ -62,7 +62,7 @@ h2 { margin: 0; font-size: 11px; letter-spacing: .12em; text-transform: uppercas
 .chart { height: 430px; width: 100%; }
 .legend { display: flex; gap: 14px; font-size: 11px; color: var(--muted); margin-top: 6px; flex-wrap: wrap; }
 .legend span::before { content: ""; display: inline-block; width: 10px; height: 2px; margin-right: 5px; vertical-align: middle; }
-.l-ema9::before { background: var(--accent2); } .l-ema21::before { background: #b58cf2; } .l-vwap::before { background: var(--accent); } .l-plan::before { background: var(--up); }
+.l-ema9::before { background: #ffd400; } .l-ema21::before { background: #22c55e; } .l-ema100::before { background: #ef4444; } .l-sig::before { background: #7CFC00; } .l-vwap::before { background: var(--accent); } .l-plan::before { background: var(--up); }
 
 .tabbar { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: -4px -4px 10px; overflow-x: auto; }
 .tabbar button { background: transparent; color: var(--muted); border-radius: 0; padding: 8px 10px; font-weight: 500; white-space: nowrap; border-bottom: 2px solid transparent; }
@@ -92,7 +92,8 @@ td.l { font-family: inherit; }
 .form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .form label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); }
 .box { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-top: 10px; font-size: 12px; }
-.box .kv { display: flex; justify-content: space-between; padding: 2px 0; }
+.box .kv { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
+.box .kv b { text-align: right; }
 .box.pass { border-color: #1f5a45; } .box.block { border-color: #6a2a2a; }
 .err { color: var(--down); }
 .news { display: flex; flex-direction: column; max-height: 460px; overflow: auto; }
@@ -134,6 +135,8 @@ td.l { font-family: inherit; }
 .ck .ok { color: var(--up); } .ck .no { color: var(--down); }
 .switch { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; }
 .switch input { width: auto; }
+.pgroup h3 { margin: 8px 0 6px; font-size: 11px; letter-spacing: .08em; color: var(--accent); font-weight: 600; }
+.events { font-size: 11px; margin-top: 8px; border-top: 1px solid var(--line); padding-top: 6px; display: flex; flex-direction: column; gap: 2px; }
 .pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin-bottom: 10px; }
 .pgrid label { display: flex; flex-direction: column; font-size: 10px; color: var(--muted); gap: 2px; }
 .pgrid input, .pgrid select { padding: 4px 6px; font-size: 12px; }

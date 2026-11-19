@@ -23,45 +23,47 @@ python3 terminal/server.py --anytime            # entraînement paper hors séan
 | Scanner | Cassure 20 jours, bull flag, reprise de la MM20, survente et rebond sur la watchlist | trader-scanner |
 | Compte paper | Positions, ordres bracket (le stop et la cible se déclenchent sur le dernier prix), historique, P&L | `trader/paper.json` |
 
-## Stratégie MINDLOCK EMA CORE (universelle)
+## Stratégie MINDLOCK EMA CORE TREND V.1 (ton Pine Script)
 
-Le terminal fait tourner la stratégie de l'Expert Advisor *MINDLOCK EMA CORE V3 EMA TOUCH*
-sur **n'importe quel actif** (or, forex, indices, actions, crypto), en **M5, M15, M30, H1 et H4**.
+Le terminal fait tourner un port Python, règle par règle, du Pine Script
+*MINDLOCK EMA CORE TREND V.1*, sur **n'importe quel actif** et en **M5, M15, M30, H1, H4**.
 Le code est dans `terminal/mindlock.py`.
 
-| Filtre | Achat | Vente |
-| --- | --- | --- |
-| Tendance | EMA 20 > EMA 50 | EMA 20 < EMA 50 |
-| Touche | la bougie touche l'EMA 20 (tolérance 0 pip) | idem |
-| RSI 14 momentum | RSI > 50 | RSI < 50 |
-| RSI extrême | RSI < 75 | RSI > 25 |
-| Bougie | haussière | baissière |
-| Sorties | stop 150 pips, cible 600 pips | idem |
+| Bloc | Règle (réglages par défaut du script) |
+| --- | --- |
+| Signal BUY | EMA 20 croise au-dessus de l'EMA 50, clôture > EMA 100, RSI 14 > 50 |
+| Signal SELL | EMA 20 croise sous l'EMA 50, clôture < EMA 100, RSI 14 < 50 |
+| Entrée | BODY LIMIT : corps de la bougie signal + 5 unités ; aussi MARKET, EMA 20, EMA 50, EMA CORE 20/50, OTE Fibonacci (0,705, 20 bougies) |
+| Ordre en attente | expire après 10 bougies, remplacé sur signal opposé, annulé hors session ; les limits EMA et OTE suivent le marché |
+| SL | structurel : plus bas / plus haut des 10 dernières bougies ± 2 unités, plafonné à 100 unités |
+| TP / BE | 300 unités ; SL ramené à l'entrée après +200 unités |
+| Signal opposé | ferme la position puis entre dans le nouveau sens |
+| Session | 09:30 – 21:45 New York : aucun nouvel ordre en dehors |
+| Daily lock | sur le P&L **réalisé** du jour : -2 % / +4 % ; ordres annulés, plus d'entrée jusqu'au lendemain |
+| Unité Auto | futures = tick, forex = pip, autres actifs = 10 × tick minimum (crypto : tick selon l'échelle du prix) |
 
-Clôture et inversion sur signal opposé, une position maximum par actif et par timeframe.
-Le risque par trade est de 0,5 % du compte, et le verrou journalier de -2 % / +6 % sur tout le compte.
+Taille (règle du terminal) : 0,5 % du compte au SL, plafonnée à 30 × le compte en valeur de position.
+Le script, lui, trade 1 contrat par défaut : mets « Risque en % » à non et « Lot fixe » à 1 pour le reproduire.
 
-**Le pip s'adapte à l'actif** (`PipSize` = 0, automatique) : environ 1/10 000 du prix.
-Ça donne 0,1 sur l'or (comme `XAUUSD_PipSize`), 0,0001 sur EURUSD, 0,01 sur USDJPY et sur les actions, et 1 sur le bitcoin.
-**Le contrat** : 100 000 en forex, 100 oz sur l'or, 1 unité ailleurs.
-**Les devises** : le P&L et la taille sont convertis en dollars quand l'actif est coté dans une autre devise (EUR, GBP, JPY…).
+- **Panneau MINDLOCK** : choix du timeframe, les 3 conditions du signal ✓/✗, l'ordre limit proposé avec SL structurel, TP et taille, l'ordre en attente, la position (BE compris), le journal des événements, le mode auto par actif / timeframe.
+- **Graphique** : EMA 20 (jaune), 50 (vert), 100 (rouge), les signaux BUY / SELL, les lignes limit / SL / TP.
+- **Scanner MINDLOCK** : watchlist × M5 → H4, signal en cours, dernier signal et alignement des EMA.
+- **Backtest** : sur l'actif et le timeframe affichés (60 jours en M5 / M15 / M30, 2 ans en H1 / H4) ou sur un export CSV MetaTrader / TradingView.
+- **Réglages** : les mêmes groupes que le script, puis « Enregistrer comme réglages live » (`trader/mindlock.json`).
 
-- **Panneau MINDLOCK** : choix du timeframe, signal de la dernière bougie clôturée avec chaque filtre ✓/✗, taille, exécution paper, mode auto par actif et par timeframe, liste de toutes les positions MINDLOCK.
-- **Scanner MINDLOCK** : toute la watchlist × M5 → H4 en un tableau ; clique une case pour ouvrir l'actif.
-- **Backtest** : sur l'actif et le timeframe affichés ; Yahoo donne 60 jours en M5 / M15 / M30 et 2 ans en H1 / H4 (H4 construit à partir du H1). Un export CSV MetaTrader permet de remonter plus loin.
-- **Réglages** : dans l'onglet Backtest, puis « Enregistrer comme réglages live » (`trader/mindlock.json`).
-
-Données Yahoo gratuites : l'or est le contrat à terme COMEX (GC=F), proche du spot XAUUSD de ton courtier. Le spread et le slippage ne sont pas simulés.
+Simulation : le simulateur de TradingView est approché bougie par bougie (limit rempli au prix ou à l'ouverture en cas de gap,
+SL / TP actifs dès la bougie suivante, extrême le plus proche de l'ouverture en premier). Pas de spread, commission ni slippage.
+Les données Yahoo (l'or = contrat à terme GC=F) sont proches de ton courtier, pas identiques.
 
 ## Règles de gestion du risque
 
 | Règle | Valeur par défaut | Effet |
 | --- | --- | --- |
 | Risque par trade | **0,5 %** du compte | La taille de position est calculée pour que la perte au stop ne dépasse pas 0,5 % de l'équité d'ouverture du jour (50 $ sur 10 000 $). |
-| Verrou perte | **-2 %** du compte (DailyLossPercent) | Dès que le P&L du jour atteint -2 %, plus aucune entrée jusqu'au lendemain. |
-| Verrou gain | **+6 %** du compte (DailyProfitPercent) | Dès que le P&L du jour atteint +6 %, la journée est terminée : gains protégés, plus aucune entrée. |
+| Verrou perte | **-2 %** du P&L réalisé du jour (DailyLossPercent) | Dès que le P&L réalisé du jour atteint -2 %, plus aucune entrée jusqu'au lendemain. |
+| Verrou gain | **+4 %** du P&L réalisé du jour (DailyProfitPercent) | Dès que le P&L réalisé du jour atteint +4 %, la journée est terminée : gains protégés, plus aucune entrée. |
 
-- Le P&L du jour se mesure contre l'équité à l'ouverture de la journée de New York (positions ouvertes comprises).
+- Comme dans le script, seul le P&L réalisé compte, rapporté à l'équité d'ouverture de la journée de New York.
 - Une fois déclenché, le verrou tient toute la journée, même si le P&L revient.
 - Les clôtures de positions restent toujours possibles.
 - Ces valeurs viennent des paramètres MINDLOCK (`RiskPercent`, `DailyLossPercent`, `DailyProfitPercent`, `UseDailyLock`), modifiables dans l'onglet Backtest.

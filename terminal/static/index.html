@@ -50,7 +50,7 @@
       </div>
       <div class="stats" id="c-stats"></div>
       <div id="chart" class="chart"></div>
-      <div class="legend"><span class="l-ema9">EMA 20</span><span class="l-ema21">EMA 50</span><span class="l-vwap">VWAP</span><span class="l-plan">Plan : entrée / stop / cible</span></div>
+      <div class="legend"><span class="l-ema9">EMA 20</span><span class="l-ema21">EMA 50</span><span class="l-ema100">EMA 100</span><span class="l-sig">Signaux MINDLOCK</span><span class="l-vwap">VWAP</span><span class="l-plan">Plan : entrée / stop / cible</span></div>
     </div>
     <div class="panel tabs">
       <nav class="tabbar" id="tabbar">
@@ -63,8 +63,8 @@
         <button data-t="macro">Macro</button>
       </nav>
       <div class="tabbody" id="tab-mindlock">
-        <p class="muted">Rejoue MINDLOCK EMA CORE bougie par bougie sur <b id="bt-target"></b> (actif du graphique, timeframe du panneau MINDLOCK). Historique Yahoo : 60 jours en M5 / M15 / M30, 2 ans en H1 / H4. Pour remonter plus loin, importe l'historique exporté de MetaTrader (CSV).</p>
-        <div id="ml-params" class="pgrid"></div>
+        <p class="muted">Rejoue ton Pine Script MINDLOCK EMA CORE TREND V.1 bougie par bougie sur <b id="bt-target"></b> (actif du graphique, timeframe du panneau MINDLOCK). Historique Yahoo : 60 jours en M5 / M15 / M30, 2 ans en H1 / H4. Pour remonter plus loin, importe l'historique exporté de MetaTrader (CSV).</p>
+        <div id="ml-params"></div>
         <div class="row">
           <label>Capital <input id="bt-bal" type="number" value="100000"></label>
           <label class="file">CSV MT5 <input id="bt-csv" type="file" accept=".csv,.txt"></label>
@@ -95,7 +95,7 @@
   <!-- right: bias, ticket, news -->
   <section class="side">
     <div class="panel mlpanel">
-      <div class="ph"><h2>MINDLOCK EMA CORE · <span id="ml-title"></span></h2><button id="ml-refresh" class="ghost sm">↻</button></div>
+      <div class="ph"><h2>MINDLOCK EMA CORE TREND · <span id="ml-title"></span></h2><button id="ml-refresh" class="ghost sm">↻</button></div>
       <div class="periods tfsel" id="ml-tf"><button data-tf="M5">M5</button><button data-tf="M15">M15</button><button data-tf="M30">M30</button><button data-tf="H1">H1</button><button data-tf="H4">H4</button></div>
       <div id="ml"></div>
     </div>
