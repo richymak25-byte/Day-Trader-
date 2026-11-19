@@ -175,7 +175,7 @@ class Mindlock(unittest.TestCase):
         bars[3] = bar(bars[3]["t"], 2010, 2011, 1990, 1995)
         eng.step(3)
         tr = eng.st["trades"][0]
-        self.assertEqual((tr["reason"], tr["exit"]), ("break-even", 1999.5))
+        self.assertEqual((tr["reason"], tr["exit"]), ("BE", 1999.5))
 
     def test_daily_lock_on_realized_loss(self):
         p = ML.for_asset(ML.params({"UseSession": False, "RiskPercent": 5, "MaxLeverage": 1000}), "GC=F", 2000)

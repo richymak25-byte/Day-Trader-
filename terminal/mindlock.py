@@ -468,19 +468,19 @@ class Engine:
                 stop_open, tp_open, stop_hit, tp_hit = b["o"] <= stop, b["o"] >= tp, b["l"] <= stop, b["h"] >= tp
             else:
                 stop_open, tp_open, stop_hit, tp_hit = b["o"] >= stop, b["o"] <= tp, b["h"] >= stop, b["l"] <= tp
-            label = "break-even" if pos["be"] else "stop"
+            label = "BE" if pos["be"] else "SL"
             if stop_open:
                 self._close(b["o"], i, label)
             elif tp_open:
-                self._close(b["o"], i, "cible")
+                self._close(b["o"], i, "TP")
             elif stop_hit and tp_hit:
                 high_first = (b["h"] - b["o"]) <= (b["o"] - b["l"])     # Pine: nearest extreme first
                 tp_first = high_first if buy else not high_first
-                self._close(tp if tp_first else stop, i, "cible" if tp_first else label)
+                self._close(tp if tp_first else stop, i, "TP" if tp_first else label)
             elif stop_hit:
                 self._close(stop, i, label)
             elif tp_hit:
-                self._close(tp, i, "cible")
+                self._close(tp, i, "TP")
         pend = st["pending"]
         if pend and not st["pos"] and pend["t"] < b["t"]:
             lim, buy = pend["price"], pend["side"] == "buy"

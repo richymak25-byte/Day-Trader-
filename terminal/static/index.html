@@ -2,134 +2,203 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07080b">
 <title>MINDLOCK Terminal</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23f3dfa8'/%3E%3Cstop offset='1' stop-color='%23b8893c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='%2307080b'/%3E%3Cpath d='M11 14v-3a5 5 0 0 1 10 0v3' fill='none' stroke='url(%23g)' stroke-width='2.4' stroke-linecap='round'/%3E%3Crect x='8' y='14' width='16' height='12' rx='3' fill='url(%23g)'/%3E%3Cpath d='M11 23l3-3 2 2 5-5' fill='none' stroke='%2307080b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3dfa8"/><stop offset="1" stop-color="#b8893c"/></linearGradient>
+    <symbol id="i-logo" viewBox="0 0 32 32"><path d="M11 14v-3a5 5 0 0 1 10 0v3" fill="none" stroke="url(#gold)" stroke-width="2.4" stroke-linecap="round"/><rect x="8" y="14" width="16" height="12" rx="3" fill="url(#gold)"/><path d="M11 23l3-3 2 2 5-5" fill="none" stroke="#07080b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3L5 14h6l-1 7 8-11h-6l1-7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-flask" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
 <header class="top">
-  <div class="brand"><span class="logo">◆</span> MINDLOCK <b>TERMINAL</b></div>
+  <a class="brand" href="#" aria-label="MINDLOCK Terminal">
+    <svg class="logo"><use href="#i-logo"/></svg>
+    <span class="word">MINDLOCK<small>TERMINAL</small></span>
+  </a>
   <div class="search">
-    <input id="search" placeholder="Rechercher un symbole (AAPL, Tesla, BTC-USD…)" autocomplete="off">
+    <svg class="ico"><use href="#i-search"/></svg>
+    <input id="search" placeholder="Rechercher un actif : XAUUSD, NQ, EURUSD, AAPL…" autocomplete="off" spellcheck="false">
+    <kbd>/</kbd>
     <div id="search-results" class="dropdown hidden"></div>
   </div>
   <div class="status">
-    <span id="regime" class="chip">MACRO …</span>
-    <span id="market" class="chip">…</span>
-    <span id="clock" class="mono"></span>
-    <span class="chip paper">PAPER</span>
+    <span id="market" class="pill"><i class="dot"></i><span>…</span></span>
+    <span id="clock" class="pill mono"></span>
+    <span id="regime" class="pill">Macro …</span>
+    <span id="daypill" class="pill mono">Jour —</span>
+    <span class="pill gold">PAPER</span>
   </div>
 </header>
-<div id="tape" class="tape"></div>
 <div id="lockbar" class="lockbar hidden"></div>
+<div class="tape-wrap"><div id="tape" class="tape"></div></div>
 
 <main class="grid">
-  <!-- left: watchlist -->
-  <section class="panel watch">
-    <div class="ph"><h2>Watchlist</h2>
-      <form id="add-form"><input id="add-sym" placeholder="+ symbole" maxlength="15"></form>
-    </div>
-    <div id="watchlist" class="list"></div>
-    <div class="ph"><h2>Compte paper</h2><button id="reset" class="ghost sm" title="Remettre le compte à zéro">↺</button></div>
-    <div id="account" class="account"></div>
-  </section>
+  <!-- ============ left: watchlist + account ============ -->
+  <aside class="col-left">
+    <section class="card" id="sec-watch">
+      <div class="card-h"><h2>Watchlist</h2>
+        <form id="add-form" class="addf"><input id="add-sym" placeholder="Ajouter" maxlength="15" spellcheck="false"><button class="icon-btn" aria-label="Ajouter"><svg><use href="#i-plus"/></svg></button></form>
+      </div>
+      <div id="watchlist" class="wlist"></div>
+    </section>
+    <section class="card" id="sec-account">
+      <div class="card-h"><h2>Compte paper</h2><button id="reset" class="icon-btn" title="Réinitialiser le compte"><svg><use href="#i-refresh"/></svg></button></div>
+      <div id="account"></div>
+    </section>
+  </aside>
 
-  <!-- center: chart + tabs -->
-  <section class="center">
-    <div class="panel chartbox">
+  <!-- ============ center: chart + tabs ============ -->
+  <section class="col-center">
+    <section class="card chart-card" id="sec-chart">
       <div class="chead">
-        <div>
-          <div class="sym"><span id="c-sym">—</span> <span id="c-name" class="muted"></span></div>
-          <div class="px"><span id="c-price" class="mono">—</span> <span id="c-chg" class="mono"></span></div>
+        <div class="ident">
+          <div class="sym"><span id="c-sym">—</span><span id="c-name" class="name"></span></div>
+          <div class="px"><span id="c-price" class="mono">—</span><span id="c-chg"></span></div>
         </div>
-        <div class="periods" id="periods">
-          <button data-p="M5">M5</button><button data-p="M15">M15</button><button data-p="M30" class="on">M30</button><button data-p="H1">H1</button><button data-p="H4">H4</button><button data-p="1D">1J</button><button data-p="5D">5J</button><button data-p="1M">1M</button>
-          <button data-p="3M">3M</button><button data-p="6M">6M</button><button data-p="1Y">1A</button><button data-p="5Y">5A</button>
+        <div class="seg" id="periods">
+          <button data-p="M5">M5</button><button data-p="M15">M15</button><button data-p="M30" class="on">M30</button><button data-p="H1">H1</button><button data-p="H4">H4</button>
+          <span class="sep"></span>
+          <button data-p="1D">1J</button><button data-p="5D">5J</button><button data-p="1M">1M</button><button data-p="6M">6M</button><button data-p="1Y">1A</button><button data-p="5Y">5A</button>
         </div>
       </div>
       <div class="stats" id="c-stats"></div>
       <div id="chart" class="chart"></div>
-      <div class="legend"><span class="l-ema9">EMA 20</span><span class="l-ema21">EMA 50</span><span class="l-ema100">EMA 100</span><span class="l-sig">Signaux MINDLOCK</span><span class="l-vwap">VWAP</span><span class="l-plan">Plan : entrée / stop / cible</span></div>
-    </div>
-    <div class="panel tabs">
-      <nav class="tabbar" id="tabbar">
-        <button data-t="mindlock" class="on">MINDLOCK Backtest</button>
-        <button data-t="positions">Positions</button>
-        <button data-t="orders">Ordres bracket</button>
-        <button data-t="fills">Historique</button>
-        <button data-t="scanner">Scanner</button>
-        <button data-t="tm">Time Machine</button>
-        <button data-t="macro">Macro</button>
+      <div class="legend">
+        <span class="lg"><i style="background:#ffd23f"></i>EMA 20</span><span class="lg"><i style="background:#2ecc71"></i>EMA 50</span><span class="lg"><i style="background:#ff4d4d"></i>EMA 100</span>
+        <span class="lg"><i class="tri up"></i>BUY</span><span class="lg"><i class="tri dn"></i>SELL</span><span class="lg"><i style="background:#7dd3fc"></i>Limit / SL / TP</span>
+      </div>
+    </section>
+
+    <section class="card tabs-card" id="sec-tabs">
+      <nav class="tabs" id="tabbar">
+        <button data-t="positions" class="on"><svg><use href="#i-layers"/></svg>Positions</button>
+        <button data-t="scanner"><svg><use href="#i-bolt"/></svg>Scanner</button>
+        <button data-t="backtest"><svg><use href="#i-flask"/></svg>Backtest</button>
+        <button data-t="journal"><svg><use href="#i-list"/></svg>Journal</button>
+        <button data-t="tools"><svg><use href="#i-chart"/></svg>Outils</button>
       </nav>
-      <div class="tabbody" id="tab-mindlock">
-        <p class="muted">Rejoue ton Pine Script MINDLOCK EMA CORE TREND V.1 bougie par bougie sur <b id="bt-target"></b> (actif du graphique, timeframe du panneau MINDLOCK). Historique Yahoo : 60 jours en M5 / M15 / M30, 2 ans en H1 / H4. Pour remonter plus loin, importe l'historique exporté de MetaTrader (CSV).</p>
-        <div id="ml-params"></div>
-        <div class="row">
-          <label>Capital <input id="bt-bal" type="number" value="100000"></label>
-          <label class="file">CSV MT5 <input id="bt-csv" type="file" accept=".csv,.txt"></label>
-          <button id="bt-run">Lancer le backtest</button>
-          <button id="ml-save" class="ghost">Enregistrer comme réglages live</button>
+
+      <div class="pane" id="tab-positions-pane">
+        <h3 class="sub">MINDLOCK</h3>
+        <div id="ml-positions"></div>
+        <h3 class="sub">Actions</h3>
+        <div id="tab-positions"></div>
+        <div id="tab-orders"></div>
+      </div>
+
+      <div class="pane hidden" id="tab-scanner-pane">
+        <div class="toolbar"><button id="mlscan-run" class="btn gold">Scanner la watchlist · M5 → H4</button>
+          <span class="hint">Signal MINDLOCK en cours, dernier signal et alignement des EMA sur chaque timeframe.</span></div>
+        <div id="scan-out"><div class="empty"><svg><use href="#i-bolt"/></svg>Lance le scanner pour voir où ta stratégie donne un signal.</div></div>
+      </div>
+
+      <div class="pane hidden" id="tab-backtest-pane">
+        <div class="bt-head">
+          <div><div class="kicker">Backtest</div><div class="bt-title">MINDLOCK EMA CORE TREND V.1 sur <b id="bt-target"></b></div>
+            <div class="hint">60 jours en M5 · M15 · M30, 2 ans en H1 · H4. Importe un export MetaTrader ou TradingView pour remonter plus loin.</div></div>
+          <div class="bt-actions">
+            <label class="field sm">Capital<input id="bt-bal" type="number" value="100000"></label>
+            <label class="file btn ghost"><input id="bt-csv" type="file" accept=".csv,.txt"><span id="bt-csv-name">Importer un CSV</span></label>
+            <button id="bt-run" class="btn gold">Lancer le backtest</button>
+          </div>
         </div>
+        <div id="ml-params" class="params"></div>
+        <div class="toolbar end"><button id="ml-save" class="btn ghost">Enregistrer comme réglages live</button></div>
         <div id="bt-out"></div>
       </div>
-      <div class="tabbody hidden" id="tab-positions"></div>
-      <div class="tabbody hidden" id="tab-orders"></div>
-      <div class="tabbody hidden" id="tab-fills"></div>
-      <div class="tabbody hidden" id="tab-scanner">
-        <div class="row"><button id="mlscan-run">Scanner MINDLOCK (M5 → H4)</button><button id="scan-run" class="ghost">Setups journaliers</button><span class="muted">Cassure 20 j, bull flag, reprise MM20, survente, rebond (clôtures journalières)</span></div>
-        <div id="scan-out"></div>
+
+      <div class="pane hidden" id="tab-journal-pane">
+        <h3 class="sub">Trades MINDLOCK</h3>
+        <div id="ml-journal"></div>
+        <h3 class="sub">Toutes les exécutions</h3>
+        <div id="tab-fills"></div>
       </div>
-      <div class="tabbody hidden" id="tab-tm">
-        <p class="muted">Rejoue le reste de la séance 10 000 fois à partir des bougies 5 min des 60 derniers jours, et reteste la même règle sur chaque séance passée. Utilise le plan du ticket d'ordre.</p>
-        <div class="row">
-          <label>Heure d'entrée (NY) <input id="tm-time" value="10:15 AM" size="9"></label>
-          <button id="tm-run">Lancer la Time Machine</button>
+
+      <div class="pane hidden" id="tab-tools-pane">
+        <nav class="subtabs" id="subtabs">
+          <button data-s="macro" class="on">Macro</button><button data-s="bias">Biais</button><button data-s="ticket">Ticket actions</button><button data-s="tm">Time Machine</button><button data-s="setups">Setups journaliers</button>
+        </nav>
+        <div class="subpane" id="sp-macro"><div id="macro-out"></div></div>
+        <div class="subpane hidden" id="sp-bias">
+          <div class="toolbar"><span class="hint">Score indicatif sur l'actif affiché : tendance, VWAP, MACD, RSI et ton des news.</span><button id="bias-refresh" class="icon-btn" title="Actualiser"><svg><use href="#i-refresh"/></svg></button></div>
+          <div id="bias"></div>
         </div>
-        <div id="tm-out"></div>
+        <div class="subpane hidden" id="sp-ticket">
+          <p class="hint">Ticket BUY pour les actions, en 4 étapes : plan, taille, contrôle du risque, envoi paper.</p>
+          <div class="steps"><span id="st1" class="step">1 · Plan</span><span id="st2" class="step">2 · Taille</span><span id="st3" class="step">3 · Risque</span><span id="st4" class="step">4 · Envoi</span></div>
+          <div class="form4">
+            <label class="field">Entrée<input id="t-entry" type="number" step="any"></label>
+            <label class="field">SL<select id="t-rule"><option value="pct">% sous l'entrée</option><option value="atr">× ATR journalier</option><option value="price">Prix fixe</option></select></label>
+            <label class="field">Paramètre<input id="t-param" type="number" step="any" value="1"></label>
+            <label class="field">TP (R)<input id="t-r" type="number" step="0.5" value="2"></label>
+          </div>
+          <button id="t-plan" class="btn gold wide">Calculer le plan</button>
+          <div id="t-out"></div>
+        </div>
+        <div class="subpane hidden" id="sp-tm">
+          <p class="hint">Rejoue la séance 10 000 fois à partir des bougies 5 min des 60 derniers jours, avec le plan du ticket actions.</p>
+          <div class="toolbar"><label class="field sm">Heure d'entrée (NY)<input id="tm-time" value="10:15 AM"></label><button id="tm-run" class="btn gold">Lancer la Time Machine</button></div>
+          <div id="tm-out"></div>
+        </div>
+        <div class="subpane hidden" id="sp-setups">
+          <div class="toolbar"><button id="scan-run" class="btn ghost">Scanner les setups journaliers</button><span class="hint">Cassure 20 jours, bull flag, reprise MM20, survente, rebond.</span></div>
+          <div id="setups-out"></div>
+        </div>
       </div>
-      <div class="tabbody hidden" id="tab-macro"><div id="macro-out"></div></div>
-    </div>
+    </section>
   </section>
 
-  <!-- right: bias, ticket, news -->
-  <section class="side">
-    <div class="panel mlpanel">
-      <div class="ph"><h2>MINDLOCK EMA CORE TREND · <span id="ml-title"></span></h2><button id="ml-refresh" class="ghost sm">↻</button></div>
-      <div class="periods tfsel" id="ml-tf"><button data-tf="M5">M5</button><button data-tf="M15">M15</button><button data-tf="M30">M30</button><button data-tf="H1">H1</button><button data-tf="H4">H4</button></div>
-      <div id="ml"></div>
-    </div>
-    <div class="panel">
-      <div class="ph"><h2>Biais du marché</h2><button id="bias-refresh" class="ghost sm">↻</button></div>
-      <div id="bias"></div>
-    </div>
-    <div class="panel ticket">
-      <div class="ph"><h2>Ticket d'ordre</h2><span class="muted sm">long uniquement</span></div>
-      <div class="steps"><span id="st1" class="step">1 Plan</span><span id="st2" class="step">2 Taille</span><span id="st3" class="step">3 Risque</span><span id="st4" class="step">4 Envoi</span></div>
-      <div class="form">
-        <label>Entrée <input id="t-entry" type="number" step="0.01"></label>
-        <label>Stop
-          <select id="t-rule">
-            <option value="pct">% sous l'entrée</option>
-            <option value="atr">× ATR journalier</option>
-            <option value="price">Prix fixe</option>
-          </select>
-        </label>
-        <label>Paramètre <input id="t-param" type="number" step="0.01" value="1"></label>
-        <label>Cible (R) <input id="t-r" type="number" step="0.5" value="2"></label>
+  <!-- ============ right: strategy + news ============ -->
+  <aside class="col-right">
+    <section class="card strat" id="sec-strat">
+      <div class="strat-h">
+        <div><div class="kicker">Stratégie · <span id="ml-title"></span></div><div class="strat-name">EMA CORE TREND <span>V.1</span></div></div>
+        <button id="ml-refresh" class="icon-btn" title="Actualiser"><svg><use href="#i-refresh"/></svg></button>
       </div>
-      <button id="t-plan" class="wide">Calculer le plan</button>
-      <div id="t-out"></div>
-    </div>
-    <div class="panel">
-      <div class="ph"><h2>News</h2><span id="news-sym" class="muted sm"></span></div>
+      <div class="seg full" id="ml-tf"><button data-tf="M5">M5</button><button data-tf="M15">M15</button><button data-tf="M30">M30</button><button data-tf="H1">H1</button><button data-tf="H4">H4</button></div>
+      <div id="ml"><div class="skel" style="height:280px"></div></div>
+    </section>
+    <section class="card" id="sec-news">
+      <div class="card-h"><h2>News</h2><span id="news-sym" class="hint"></span></div>
       <div id="news" class="news"></div>
-    </div>
-  </section>
+    </section>
+  </aside>
 </main>
-<footer class="foot">Données Yahoo Finance gratuites, avec délai · Compte simulé (paper), aucun ordre réel · Outil éducatif, pas un conseil financier.</footer>
+
+<footer class="foot">MINDLOCK Terminal · Données Yahoo Finance gratuites, avec délai · Compte simulé (paper), aucun ordre réel · Outil éducatif, pas un conseil financier.</footer>
+
+<nav class="bottomnav" id="bottomnav">
+  <a href="#sec-chart"><svg><use href="#i-chart"/></svg>Graphique</a>
+  <a href="#sec-strat"><svg><use href="#i-bolt"/></svg>Stratégie</a>
+  <a href="#sec-tabs" data-tab="positions"><svg><use href="#i-layers"/></svg>Positions</a>
+  <a href="#sec-tabs" data-tab="backtest"><svg><use href="#i-flask"/></svg>Backtest</a>
+  <a href="#sec-watch"><svg><use href="#i-list"/></svg>Watchlist</a>
+</nav>
+
 <div id="toast" class="toast hidden"></div>
-<div id="modal" class="modal hidden"><div class="mbox"><div id="mbody"></div><div class="mact"><button id="m-no" class="ghost">Annuler</button><button id="m-yes">Oui, envoyer</button></div></div></div>
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true"><div class="mbox"><div id="mbody"></div><div class="mact"><button id="m-no" class="btn ghost">Annuler</button><button id="m-yes" class="btn gold">Confirmer</button></div></div></div>
 <script src="app.js"></script>
 </body>
 </html>
