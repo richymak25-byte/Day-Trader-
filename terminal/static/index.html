@@ -44,24 +44,36 @@
           <div class="px"><span id="c-price" class="mono">—</span> <span id="c-chg" class="mono"></span></div>
         </div>
         <div class="periods" id="periods">
-          <button data-p="1D" class="on">1J</button><button data-p="5D">5J</button><button data-p="1M">1M</button>
+          <button data-p="M30" class="on">M30</button><button data-p="1D">1J</button><button data-p="5D">5J</button><button data-p="1M">1M</button>
           <button data-p="3M">3M</button><button data-p="6M">6M</button><button data-p="1Y">1A</button><button data-p="5Y">5A</button>
         </div>
       </div>
       <div class="stats" id="c-stats"></div>
       <div id="chart" class="chart"></div>
-      <div class="legend"><span class="l-ema9">EMA 9</span><span class="l-ema21">EMA 21</span><span class="l-vwap">VWAP</span><span class="l-plan">Plan : entrée / stop / cible</span></div>
+      <div class="legend"><span class="l-ema9">EMA 20</span><span class="l-ema21">EMA 50</span><span class="l-vwap">VWAP</span><span class="l-plan">Plan : entrée / stop / cible</span></div>
     </div>
     <div class="panel tabs">
       <nav class="tabbar" id="tabbar">
-        <button data-t="positions" class="on">Positions</button>
+        <button data-t="mindlock" class="on">MINDLOCK Backtest</button>
+        <button data-t="positions">Positions</button>
         <button data-t="orders">Ordres bracket</button>
         <button data-t="fills">Historique</button>
         <button data-t="scanner">Scanner</button>
         <button data-t="tm">Time Machine</button>
         <button data-t="macro">Macro</button>
       </nav>
-      <div class="tabbody" id="tab-positions"></div>
+      <div class="tabbody" id="tab-mindlock">
+        <p class="muted">Rejoue MINDLOCK EMA CORE bougie par bougie. Par défaut, les 60 derniers jours d'or en M30 (Yahoo GC=F). Pour 2020 → aujourd'hui, importe l'historique M30 exporté de MetaTrader (CSV).</p>
+        <div id="ml-params" class="pgrid"></div>
+        <div class="row">
+          <label>Capital <input id="bt-bal" type="number" value="100000"></label>
+          <label class="file">CSV MT5 <input id="bt-csv" type="file" accept=".csv,.txt"></label>
+          <button id="bt-run">Lancer le backtest</button>
+          <button id="ml-save" class="ghost">Enregistrer comme réglages live</button>
+        </div>
+        <div id="bt-out"></div>
+      </div>
+      <div class="tabbody hidden" id="tab-positions"></div>
       <div class="tabbody hidden" id="tab-orders"></div>
       <div class="tabbody hidden" id="tab-fills"></div>
       <div class="tabbody hidden" id="tab-scanner">
@@ -82,6 +94,10 @@
 
   <!-- right: bias, ticket, news -->
   <section class="side">
+    <div class="panel mlpanel">
+      <div class="ph"><h2>MINDLOCK EMA CORE · XAUUSD M30</h2><button id="ml-refresh" class="ghost sm">↻</button></div>
+      <div id="ml"></div>
+    </div>
     <div class="panel">
       <div class="ph"><h2>Biais du marché</h2><button id="bias-refresh" class="ghost sm">↻</button></div>
       <div id="bias"></div>

@@ -34,9 +34,9 @@ function confirmBox(html) {
 
 /* ------------------------------------------------------------ state */
 const S = {
-  sym: store.get("dt.sym", "AAPL"),
-  watch: store.get("dt.watch", ["AAPL", "TSLA", "NVDA", "MSFT", "AMZN", "META", "AMD", "SPY", "QQQ"]),
-  period: "1D", plan: null, order: null, risk: null, bias: null, chartData: null,
+  sym: store.get("dt.sym", "GC=F"),
+  watch: store.get("dt.watch", ["GC=F", "AAPL", "TSLA", "NVDA", "MSFT", "AMZN", "META", "AMD", "SPY", "QQQ"]),
+  period: "M30", plan: null, order: null, risk: null, bias: null, chartData: null,
 };
 
 /* ------------------------------------------------------------ chart */
@@ -86,11 +86,11 @@ async function loadChart() {
     const bars = d.bars.map((b) => ({ ...b, time: b.t + off }));
     candles.setData(bars.map((b) => ({ time: b.time, open: b.o, high: b.h, low: b.l, close: b.c })));
     volume.setData(bars.map((b) => ({ time: b.time, value: b.v, color: b.c >= b.o ? "rgba(34,197,139,.35)" : "rgba(239,90,90,.35)" })));
-    e9.setData(emaSeries(bars, 9)); e21.setData(emaSeries(bars, 21));
+    e9.setData(emaSeries(bars, 20)); e21.setData(emaSeries(bars, 50));
     const intraday = ["1D", "5D"].includes(S.period);
     vw.setData(intraday ? vwapSeries(bars) : []);
     chart.timeScale().fitContent();
-    drawPlan();
+    drawPlan(); drawMarkers();
     renderHeader(d);
     if (!$("t-entry").value || $("t-entry").dataset.sym !== S.sym) { $("t-entry").value = d.price?.toFixed(2) ?? ""; $("t-entry").dataset.sym = S.sym; }
   } catch (e) { toast(e.message, true); }
@@ -375,10 +375,109 @@ function tick() {
   $("clock").textContent = "New York " + ny;
 }
 
+/* ------------------------------------------------------------ MINDLOCK EMA CORE */
+const ML = { data: null };
+const SIDE_FR = { buy: "ACHAT", sell: "VENTE" };
+function drawMarkers() {
+  const d = ML.data, cd = S.chartData;
+  if (!d || !cd || S.sym !== d.symbol || cd.interval !== "30m") { candles.setMarkers([]); return; }
+  const have = new Set(cd.bars.map((b) => b.t));
+  const off = cd.gmtoffset || 0;
+  candles.setMarkers(d.markers.filter((m) => have.has(m.t)).map((m) => ({
+    time: m.t + off, position: m.side === "buy" ? "belowBar" : "aboveBar", shape: m.side === "buy" ? "arrowUp" : "arrowDown",
+    color: m.side === "buy" ? "#22c58b" : "#ef5a5a", text: m.side === "buy" ? "B" : "S" })));
+}
+async function loadML() {
+  try {
+    const d = await api("/api/mindlock/signal"); ML.data = d;
+    const time = new Date(d.bar.t * 1000 + 1800000).toLocaleString("fr-FR", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
+    const col = d.signal === "buy" ? "up" : d.signal === "sell" ? "down" : "muted";
+    const ckList = (side) => d.sides[side].checks.map((c) => `<div class="ck" title="${esc(c.detail)}"><span class="${c.ok ? "ok" : "no"}">${c.ok ? "✓" : "✗"}</span>${esc(c.name)}</div>`).join("");
+    const pos = d.position;
+    let h = `<div class="mlsig"><div><div class="big ${col}">${d.signal ? "SIGNAL " + SIDE_FR[d.signal] : "PAS DE SIGNAL"}</div>
+        <div class="muted sm">bougie M30 clôturée à ${time} UTC · or ${fmt(d.bar.c)}</div></div>
+        <button class="ghost sm" id="ml-chart">Graphique</button></div>
+      <div class="mlcols"><div class="mlcol"><h3 class="up">ACHAT</h3>${ckList("buy")}</div><div class="mlcol"><h3 class="down">VENTE</h3>${ckList("sell")}</div></div>
+      <div class="box"><div class="kv"><span>Taille (risque ${fmt(d.params.RiskPercent, 1)} %)</span><b class="mono">${fmt(d.lots)} lot · ${usd(d.risk_usd)} au stop</b></div>
+        <div class="kv"><span>Stop / cible</span><b class="mono">${d.params.StopLossPips} / ${d.params.TakeProfitPips} pips (${fmt(d.params.StopLossPips * d.params.XAUUSD_PipSize)} $ / ${fmt(d.params.TakeProfitPips * d.params.XAUUSD_PipSize)} $)</b></div>
+        <div class="kv"><span>Verrou du jour</span><b class="mono">${d.params.UseDailyLock ? `-${fmt(d.params.DailyLossPercent, 1)} % / +${fmt(d.params.DailyProfitPercent, 1)} %` : "désactivé"}${d.day.lock ? ' <span class="tag r">ACTIF</span>' : ""}</b></div></div>`;
+    if (pos) h += `<div class="box ${pos.pnl >= 0 ? "pass" : "block"}"><div class="kv"><span>Position <b class="${pos.side === "buy" ? "up" : "down"}">${SIDE_FR[pos.side]}</b> ${fmt(pos.lots)} lot</span><b class="mono ${cls(pos.pnl)}">${usd(pos.pnl)}</b></div>
+        <div class="kv"><span>Entrée ${fmt(pos.entry)}</span><span class="mono"><span class="down">SL ${fmt(pos.sl)}</span> · <span class="up">TP ${fmt(pos.tp)}</span></span></div>
+        <button id="ml-close" class="wide sell">Clôturer la position</button></div>`;
+    else if (d.signal) h += `<button id="ml-exec" class="wide ${d.signal}">${d.signal === "buy" ? "Acheter" : "Vendre"} ${fmt(d.lots)} lot XAUUSD (paper)</button>`;
+    h += `<label class="switch" style="margin-top:10px"><input type="checkbox" id="ml-auto" ${d.auto ? "checked" : ""}> Mode auto (paper) : la stratégie prend chaque signal toute seule, inversion comprise</label>`;
+    if (d.trades.length) h += `<div class="note">Derniers trades : ${d.trades.slice(0, 5).map((t) => `<span class="${cls(t.pnl)}">${t.side === "buy" ? "B" : "S"} ${t.pips > 0 ? "+" : ""}${fmt(t.pips, 0)} p</span>`).join(" · ")}</div>`;
+    h += `<div class="note">Données : or à terme COMEX (GC=F), proche du spot XAUUSD de ton courtier mais pas identique. Compte simulé.</div>`;
+    $("ml").innerHTML = h;
+    $("ml-chart").onclick = () => { S.period = "M30"; document.querySelectorAll("#periods button").forEach((x) => x.classList.toggle("on", x.dataset.p === "M30")); select(d.symbol); };
+    if ($("ml-exec")) $("ml-exec").onclick = async () => {
+      const sl = d.sides[d.signal].sl, tp = d.sides[d.signal].tp;
+      if (!(await confirmBox(`<h3 style="margin-top:0">${SIDE_FR[d.signal]} XAUUSD (paper)</h3><p>${fmt(d.lots)} lot à ~${fmt(d.bar.c)}, stop <b class="down">${fmt(sl)}</b>, cible <b class="up">${fmt(tp)}</b>.</p><p class="muted">Perte max au stop ≈ ${usd(d.risk_usd)}. Aucun ordre réel.</p>`))) return;
+      try { await api("/api/mindlock/execute", { side: d.signal, confirm: true }); toast("Position MINDLOCK ouverte (paper)"); loadML(); loadAccount(); } catch (e) { toast(e.message, true); }
+    };
+    if ($("ml-close")) $("ml-close").onclick = async () => {
+      if (!(await confirmBox(`<h3 style="margin-top:0">Clôturer la position XAUUSD ?</h3><p>Au dernier prix (paper).</p>`))) return;
+      try { await api("/api/mindlock/close", {}); toast("Position clôturée"); loadML(); loadAccount(); } catch (e) { toast(e.message, true); }
+    };
+    $("ml-auto").onchange = async (ev) => {
+      const on = ev.target.checked;
+      if (on && !(await confirmBox(`<h3 style="margin-top:0">Activer le mode auto ?</h3><p>Sur le compte <b>paper</b>, MINDLOCK EMA CORE ouvrira, inversera et fermera les positions XAUUSD à chaque clôture de bougie M30, en respectant le risque par trade et le verrou journalier.</p><p class="muted">Le serveur doit rester allumé. Aucun ordre réel.</p>`))) { ev.target.checked = false; return; }
+      try { await api("/api/mindlock/auto", { on }); toast(on ? "Mode auto activé (paper)" : "Mode auto désactivé"); } catch (e) { toast(e.message, true); ev.target.checked = !on; }
+    };
+    drawMarkers();
+  } catch (e) { $("ml").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+$("ml-refresh").onclick = loadML;
+
+const PARAM_FORM = [
+  ["FastEMA", "EMA rapide"], ["SlowEMA", "EMA lente"], ["EMATouchReference", "EMA touchée (0 rapide, 1 lente)"], ["EMATouchTolerancePips", "Tolérance touche (pips)"],
+  ["RSIPeriod", "Période RSI"], ["UseRSI", "Filtre RSI"], ["RSIMomentum", "RSI momentum (50)"], ["RSIExtreme", "RSI extrêmes"], ["RSIUpper", "RSI haut"], ["RSILower", "RSI bas"],
+  ["RequireBullCandle", "Bougie haussière (achat)"], ["RequireBearCandle", "Bougie baissière (vente)"], ["RequireBreakHigh", "Cassure du plus haut"], ["RequireBreakLow", "Cassure du plus bas"],
+  ["UseRiskPercent", "Risque en %"], ["RiskPercent", "Risque %"], ["FixedLot", "Lot fixe"], ["StopLossPips", "Stop (pips)"], ["TakeProfitPips", "Cible (pips)"],
+  ["UseBreakEven", "Break-even"], ["BreakEvenPips", "Break-even (pips)"], ["UseDailyLock", "Verrou journalier"], ["DailyLossPercent", "Perte max jour %"], ["DailyProfitPercent", "Gain max jour %"],
+  ["CloseAndReverse", "Clôture et inversion"], ["XAUUSD_PipSize", "Taille du pip"],
+];
+function renderParams(p) {
+  $("ml-params").innerHTML = PARAM_FORM.map(([k, label]) => typeof p[k] === "boolean"
+    ? `<label>${label}<select data-k="${k}"><option value="true" ${p[k] ? "selected" : ""}>true</option><option value="false" ${p[k] ? "" : "selected"}>false</option></select></label>`
+    : `<label>${label}<input data-k="${k}" type="number" step="any" value="${p[k]}"></label>`).join("");
+}
+function readParams() {
+  const o = {}; document.querySelectorAll("#ml-params [data-k]").forEach((el) => { o[el.dataset.k] = el.tagName === "SELECT" ? el.value === "true" : el.value; }); return o;
+}
+let eqChart;
+$("bt-run").onclick = async () => {
+  $("bt-out").innerHTML = `<div class="muted">Backtest en cours…</div>`;
+  try {
+    const body = { params: readParams(), balance: $("bt-bal").value };
+    const f = $("bt-csv").files[0]; if (f) body.csv = await f.text();
+    const r = await api("/api/mindlock/backtest", body);
+    const day = (t) => new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ");
+    $("bt-out").innerHTML = `<div class="muted sm">${esc(r.source)} · ${day(r.from)} → ${day(r.to)} UTC</div>
+      <div class="kpis">${[["Résultat net", `<span class="${cls(r.net)}">${usd(r.net)}</span>`], ["En %", `<span class="${cls(r.net_pct)}">${pct(r.net_pct)}</span>`], ["En pips", `<span class="${cls(r.net_pips)}">${fmt(r.net_pips, 0)}</span>`],
+        ["Trades", r.trades], ["Taux de réussite", fmt(r.win_rate, 1) + " %"], ["Profit factor", r.profit_factor == null ? "—" : fmt(r.profit_factor)],
+        ["Gain moyen", usd(r.avg_win)], ["Perte moyenne", usd(r.avg_loss)], ["Drawdown max", `${usd(r.max_drawdown)} (${fmt(r.max_drawdown_pct)} %)`], ["Jours verrouillés", r.locked_days]]
+        .map(([n, v]) => `<div class="kpi"><div class="n">${n}</div><div class="v">${v}</div></div>`).join("")}</div>
+      <div id="eq" class="eqchart"></div>
+      <table><tr><th>Entrée (UTC)</th><th>Sens</th><th>Lot</th><th>Entrée</th><th>Sortie</th><th>Raison</th><th>Pips</th><th>P&L</th></tr>
+      ${r.trade_list.slice(0, 60).map((t) => `<tr><td>${day(t.t)}</td><td class="${t.side === "buy" ? "up" : "down"}">${SIDE_FR[t.side]}</td><td>${fmt(t.lots)}</td><td>${fmt(t.entry)}</td><td>${fmt(t.exit)}</td><td class="l">${esc(t.reason)}</td><td class="${cls(t.pips)}">${fmt(t.pips, 0)}</td><td class="${cls(t.pnl)}">${fmt(t.pnl)}</td></tr>`).join("")}</table>
+      <p class="note">Simulation sur bougies clôturées : entrée à la clôture de la bougie signal, stop compté avant la cible si les deux sont touchés dans la même bougie, sans spread ni slippage. Un résultat passé ne garantit rien.</p>`;
+    eqChart = LW.createChart($("eq"), { autoSize: true, layout: { background: { color: "transparent" }, textColor: "#7c8896" }, grid: { vertLines: { visible: false }, horzLines: { color: "#141a22" } }, timeScale: { timeVisible: true } });
+    eqChart.addAreaSeries({ lineColor: "#f2b43c", topColor: "rgba(242,180,60,.25)", bottomColor: "rgba(242,180,60,0)", lineWidth: 2 })
+      .setData(r.curve.map((c) => ({ time: c.t, value: c.equity })));
+    eqChart.timeScale().fitContent();
+  } catch (e) { $("bt-out").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+};
+$("ml-save").onclick = async () => {
+  if (!(await confirmBox(`<h3 style="margin-top:0">Appliquer ces réglages en live ?</h3><p>Le signal, le mode auto, le risque par trade et le verrou journalier du terminal utiliseront ces paramètres.</p>`))) return;
+  try { const r = await api("/api/mindlock/params", { params: readParams() }); renderParams(r.params); toast("Réglages MINDLOCK enregistrés"); loadML(); loadAccount(); } catch (e) { toast(e.message, true); }
+};
+
 /* ------------------------------------------------------------ boot */
 initChart();
 api("/api/config").then((c) => { S.anytime = c.anytime; }).catch(() => {});
+loadML().then(() => ML.data && renderParams(ML.data.params));
 loadWatch(); select(S.sym); loadAccount(); loadMacro(); loadMarket(); tick();
 setInterval(tick, 1000);
-setInterval(() => { if (document.hidden) return; loadWatch(); loadAccount(); if (S.period === "1D") loadChart(); }, 15000);
-setInterval(() => { if (!document.hidden) { loadMacro(); loadMarket(); } }, 60000);
+setInterval(() => { if (document.hidden) return; loadWatch(); loadAccount(); if (["1D", "M30"].includes(S.period)) loadChart(); }, 15000);
+setInterval(() => { if (!document.hidden) { loadMacro(); loadMarket(); loadML(); } }, 60000);

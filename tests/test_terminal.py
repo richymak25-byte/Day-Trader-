@@ -80,3 +80,57 @@ class DailyLock(unittest.TestCase):
         d = T.day_state(doc, 9800, self.C)
         self.assertIsNone(d["lock"])
         self.assertEqual(d["start_equity"], 9800)
+
+
+ML = load("terminal", "mindlock")
+
+
+def bar(t, o, h, l, c):
+    return {"t": t, "o": o, "h": h, "l": l, "c": c}
+
+
+class Mindlock(unittest.TestCase):
+    def test_default_params_match_the_ea(self):
+        p = ML.params()
+        self.assertEqual((p["FastEMA"], p["SlowEMA"], p["RSIPeriod"], p["StopLossPips"], p["TakeProfitPips"]),
+                         (20, 50, 14, 150, 600))
+        self.assertEqual((p["RSIUpper"], p["RSILower"], p["XAUUSD_PipSize"], p["RiskPercent"]), (75.0, 25.0, 0.1, 0.5))
+        self.assertEqual(ML.levels("buy", 2000.0, p), (1985.0, 2060.0))
+        self.assertEqual(ML.levels("sell", 2000.0, p), (2015.0, 1940.0))
+
+    def test_lot_size_risks_half_a_percent(self):
+        p = ML.params()
+        self.assertEqual(ML.lots_for(100000, p), 0.33)        # 500 $ / (15 $ x 100 oz)
+        self.assertEqual(ML.lots_for(10000, p), 0.03)
+        self.assertEqual(ML.lots_for(10000, ML.params({"UseRiskPercent": False})), 1.0)
+
+    def test_buy_signal_needs_every_filter(self):
+        p = ML.params({"FastEMA": 3, "SlowEMA": 5, "RSIPeriod": 3})
+        closes = [100 + i * 0.5 + (0.8 if i % 2 else 0) for i in range(30)]
+        bars = [bar(i * 1800, c - 0.2, c + 0.3, c - 0.6, c) for i, c in enumerate(closes)]
+        ind = ML.indicators(bars, p)
+        i = len(bars) - 1
+        f = ind["fast"][i]
+        bars[i] = bar(i * 1800, f - 0.1, f + 0.4, f - 0.3, f + 0.3)       # bull candle touching EMA fast
+        ind = ML.indicators(bars, p)
+        ch = ML.checks(bars, ind, i, p)
+        names = {n: ok for n, ok, _ in ch["buy"]}
+        self.assertTrue(names["Bougie haussière"])
+        self.assertEqual(ML.signal_at(bars, ind, i, p) == "buy", all(names.values()))
+
+    def test_stop_counts_first_when_both_are_hit(self):
+        p = ML.params()
+        pos = {"side": "buy", "entry": 2000.0, "sl": 1985.0, "tp": 2060.0, "lots": 1.0, "t": 0}
+        self.assertEqual(ML.manage(pos, bar(1, 2000, 2070, 1980, 2000), p), (1985.0, "stop"))
+        tr = ML.close_trade(pos, 2060.0, 2, "cible", p)
+        self.assertEqual((tr["pips"], tr["pnl"]), (600.0, 6000.0))
+
+    def test_backtest_and_csv(self):
+        csv = "\n".join("2026.01.%02d\t%02d:%02d\t%.2f\t%.2f\t%.2f\t%.2f\t100"
+                        % (1 + k // 48, (k % 48) // 2, 30 * (k % 2), 2000 + k, 2001 + k, 1999 + k, 2000.5 + k)
+                        for k in range(200))
+        bars = ML.parse_csv("<DATE>\t<TIME>\t<OPEN>\t<HIGH>\t<LOW>\t<CLOSE>\t<TICKVOL>\n" + csv)
+        self.assertEqual(len(bars), 200)
+        r = ML.backtest(bars, ML.params(), 100000)
+        self.assertEqual(r["bars"], 200)
+        self.assertGreaterEqual(r["trades"], 0)
