@@ -738,6 +738,39 @@ def _sym_tf(q):
     return _sym(q), _tf(q.get("tf"))
 
 
+def ml_engine_state(bars, ind, i, p):
+    """The signal engine: EMA 20 vs EMA 50, the last crossover, the gap and the filters of
+    the next crossover (the side the EMA 20 has to cross to)."""
+    e20, e50, e100, r = ind["e20"], ind["e50"], ind["e100"], ind["rsi"]
+    if None in (e20[i], e50[i], e20[i - 1], e50[i - 1]):
+        return None
+    above = e20[i] > e50[i]
+    last = None
+    for j in range(i, 0, -1):
+        if e20[j - 1] is None or e50[j - 1] is None:
+            break
+        if (e20[j] > e50[j]) != (e20[j - 1] > e50[j - 1]):
+            last = {"side": "buy" if e20[j] > e50[j] else "sell", "bars_ago": i - j, "t": bars[j]["t"],
+                    "validated": ML.signal_at(bars, ind, j, p) is not None}
+            break
+    gap = (e20[i] - e50[i]) / p["Unit"]
+    prev_gap = (e20[i - 1] - e50[i - 1]) / p["Unit"]
+    nxt = "sell" if above else "buy"
+    c = bars[i]["c"]
+    filters = []
+    if e100[i] is not None:
+        filters.append({"name": "Clôture %s EMA 100" % (">" if nxt == "buy" else "<"),
+                        "ok": c > e100[i] if nxt == "buy" else c < e100[i],
+                        "detail": "%s vs %s" % (ML.rnd(c, p), ML.rnd(e100[i], p))})
+    if p["UseRSI"] and r[i] is not None:
+        filters.append({"name": "RSI %s %g" % (">" if nxt == "buy" else "<", p["RSIMid"]),
+                        "ok": r[i] > p["RSIMid"] if nxt == "buy" else r[i] < p["RSIMid"], "detail": "RSI %.1f" % r[i]})
+    return {"above": above, "e20": ML.rnd(e20[i], p), "e50": ML.rnd(e50[i], p), "e100": ML.rnd(e100[i], p) if e100[i] else None,
+            "rsi": round(r[i], 1) if r[i] is not None else None, "gap_units": round(gap, 1),
+            "converging": abs(gap) < abs(prev_gap), "last_cross": last, "next_side": nxt, "filters": filters,
+            "crossed_now": bool(last and last["bars_ago"] == 0)}
+
+
 def api_ml_signal(q):
     sym, tf = _sym_tf(q)
     key = ml_key(sym, tf)
@@ -771,7 +804,8 @@ def api_ml_signal(q):
     recent = [{"t": bars[j]["t"], "side": s} for j in range(max(0, i - 600), i + 1)
               for s in [ML.signal_at(bars, ind, j, p)] if s]
     trend = "up" if ind["e20"][i] and ind["e50"][i] and ind["e20"][i] > ind["e50"][i] else "down"
-    return {"params": p, "base_params": ml_params(), "symbol": sym, "tf": tf, "key": key,
+    engine = ml_engine_state(bars, ind, i, p)
+    return {"params": p, "base_params": ml_params(), "symbol": sym, "tf": tf, "key": key, "engine": engine,
             "name": meta.get("shortName") or sym, "bar": last, "bar_seconds": TF_SPEC[tf][2], "signal": sig,
             "sides": sides, "trend": trend, "in_session": insess,
             "ema20": ind["e20"][i], "ema50": ind["e50"][i], "ema100": ind["e100"][i], "rsi": ind["rsi"][i],

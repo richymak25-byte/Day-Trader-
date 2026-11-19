@@ -442,12 +442,6 @@ function drawMarkers() {
   if (d.position) { line(d.position.entry, "#eceef3", "Entrée", 0); line(d.position.sl, "#ff5c7c", d.position.be ? "BE" : "SL"); line(d.position.tp, "#2fd8a1", "TP"); }
   else if (d.pending) { line(d.pending.price, "#7dd3fc", "Limit " + SIDE[d.pending.side]); line(d.pending.sl, "rgba(255,92,124,.65)", "SL"); line(d.pending.tp, "rgba(47,216,161,.65)", "TP"); }
 }
-function ring(n, total, color) {
-  const r = 31, c = 2 * Math.PI * r, f = total ? n / total : 0;
-  return `<div class="ring"><svg viewBox="0 0 74 74"><circle cx="37" cy="37" r="${r}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="6"/>
-    <circle cx="37" cy="37" r="${r}" fill="none" stroke="${color}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}"/></svg>
-    <div class="lbl"><div>${n}/${total}<small>FILTRES</small></div></div></div>`;
-}
 function ladder(entry, sl, tp, nd, label) {
   const up = tp > entry;
   const risk = Math.abs(entry - sl), rew = Math.abs(tp - entry), r = risk ? rew / risk : 0;
@@ -470,19 +464,37 @@ async function loadML() {
   } catch (e) { if (req === mlReq) $("ml").innerHTML = `<div class="box block err">${esc(e.message)}</div>`; }
 }
 function renderStrategy(d) {
-  const nd = digitsOf(d.params), P = d.params, unit = P.Unit;
-  const sb = d.sides.buy.checks, ss = d.sides.sell.checks;
-  const nb = sb.filter((c) => c.ok).length, ns = ss.filter((c) => c.ok).length;
-  const lead = d.signal || (nb >= ns ? "buy" : "sell"), n = Math.max(nb, ns), total = Math.max(sb.length, ss.length);
-  const color = d.signal === "buy" ? "#2fd8a1" : d.signal === "sell" ? "#ff5c7c" : n === total - 1 ? "#d9b56a" : "#5c6272";
-  const state = d.signal ? `SIGNAL ${SIDE[d.signal]}` : n === total - 1 ? `PRESQUE ${SIDE[lead]}` : "EN VEILLE";
-  const cond = (c) => `<div class="cond ${c.ok ? "ok" : "no"}" title="${esc(c.detail)}"><span class="b">${icon(c.ok ? "check" : "x")}</span>${esc(c.name)}</div>`;
+  const nd = digitsOf(d.params), P = d.params, unit = P.Unit, E = d.engine;
+  const cond = (c) => `<div class="cond ${c.ok ? "ok" : "no"}" title="${esc(c.detail)}"><span class="b">${icon(c.ok ? "check" : "x")}</span><span>${esc(c.name)} <span class="faint">· ${esc(c.detail)}</span></span></div>`;
   const pos = d.position, pend = d.pending;
-  let h = `<div class="hero">${ring(n, total, color)}<div class="hero-t">
-      <div class="state ${d.signal || "idle"}">${state}</div>
-      <div class="meta"><span>Bougie ${d.tf} close à ${nyTime(d.bar.t + d.bar_seconds, false)} NY</span>
-        <span class="tag ${d.trend === "up" ? "g" : "r"}">Tendance ${d.trend === "up" ? "▲" : "▼"}</span>${d.in_session ? "" : '<span class="tag">Hors session</span>'}${d.day.lock ? `<span class="tag r">${icon("lock")}Daily lock</span>` : ""}</div></div></div>
-    <div class="conds"><div class="cond-col"><h4 class="up">BUY</h4>${sb.map(cond).join("")}</div><div class="cond-col"><h4 class="down">SELL</h4>${ss.map(cond).join("")}</div></div>`;
+  let h = "";
+  if (E) {
+    const nxt = E.next_side, fOk = E.filters.filter((f) => f.ok).length, fN = E.filters.length;
+    const blocked = E.crossed_now && !d.signal;
+    const color = d.signal === "buy" ? "#2fd8a1" : d.signal === "sell" ? "#ff5c7c" : blocked ? "#5c6272" : fOk === fN ? "#d9b56a" : "#5c6272";
+    const state = d.signal ? `SIGNAL ${SIDE[d.signal]}` : blocked ? `${SIDE[E.last_cross.side]} BLOQUÉ` : "EN ATTENTE";
+    const sub = d.signal ? "Croisement EMA 20/50 à la clôture, filtres validés"
+      : blocked ? "Croisement à la clôture, mais les filtres ne valident pas"
+      : `du croisement EMA 20/50 · prochain : <b class="${nxt === "buy" ? "up" : "down"}">${SIDE[nxt]}</b>`;
+    const lc = E.last_cross;
+    const r = 31, c = 2 * Math.PI * r, frac = fN ? fOk / fN : 0;
+    h += `<div class="hero"><div class="ring"><svg viewBox="0 0 74 74"><circle cx="37" cy="37" r="${r}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="6"/>
+        <circle cx="37" cy="37" r="${r}" fill="none" stroke="${color}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(c * frac).toFixed(1)} ${c.toFixed(1)}"/></svg>
+        <div class="lbl"><div>${fOk}/${fN}<small>FILTRES</small></div></div></div>
+      <div class="hero-t"><div class="state ${d.signal || "idle"}">${state}</div>
+        <div class="meta"><span>${sub}</span></div>
+        <div class="meta"><span>Bougie ${d.tf} close à ${nyTime(d.bar.t + d.bar_seconds, false)} NY</span>${d.in_session ? "" : '<span class="tag">Hors session</span>'}${d.day.lock ? `<span class="tag r">${icon("lock")}Daily lock</span>` : ""}</div></div></div>
+      <div class="engine">
+        <div class="eh"><span class="kicker">Moteur · croisement EMA 20 / 50</span></div>
+        <div class="emas"><div><i style="background:#ffd23f"></i>EMA 20<b class="mono">${px(E.e20, nd)}</b></div><div><i style="background:#2ecc71"></i>EMA 50<b class="mono">${px(E.e50, nd)}</b></div></div>
+        <div class="kv"><span>Position</span><b class="${E.above ? "up" : "down"}">EMA 20 ${E.above ? "au-dessus" : "en dessous"} ${E.above ? "▲" : "▼"}</b></div>
+        <div class="kv"><span>Écart 20 / 50</span><b class="mono">${fmt(Math.abs(E.gap_units), 1)} u <span class="tag ${E.converging ? "y" : ""}">${E.converging ? "se resserre" : "s'écarte"}</span></b></div>
+        <div class="kv"><span>Dernier croisement</span><b>${lc ? `${side(lc.side)} il y a ${lc.bars_ago} bougie${lc.bars_ago > 1 ? "s" : ""} <span class="tag ${lc.validated ? "g" : ""}">${lc.validated ? "signal validé" : "filtré"}</span>` : "—"}</b></div>
+      </div>
+      <div class="filters"><div class="kicker" style="color:var(--muted)">Filtres du prochain croisement <span class="${nxt === "buy" ? "up" : "down"}">${SIDE[nxt]}</span></div>${E.filters.map(cond).join("")}</div>`;
+  } else {
+    h += `<div class="hint" style="margin:14px 0">Pas encore assez de bougies pour les EMA 20 / 50 / 100.</div>`;
+  }
   if (pos) {
     h += `<div class="order"><div class="oh"><span>${side(pos.side)} <b>${fmt(pos.lots, 2)} lot</b> ${pos.be ? '<span class="tag y">BE actif</span>' : ""}</span><b class="mono ${cls(pos.pnl)}" style="font-size:16px">${sgnUsd(pos.pnl)}</b></div>
       ${ladder(pos.entry, pos.sl0 ?? pos.sl, pos.tp, nd, "Entrée")}
@@ -499,7 +511,7 @@ function renderStrategy(d) {
       <button id="ml-exec" class="btn ${d.signal} wide">${P.EntryMethod === "MARKET" ? `${SIDE[d.signal]} au marché` : `Placer le limit ${SIDE[d.signal]} · ${px(sd.entry, nd)}`}</button>`;
   } else {
     h += `<div class="order"><div class="oh"><b>Aucun ordre</b><span class="tag">en attente</span></div>
-      <div class="hint">Prochain signal : croisement EMA 20/50 validé par l'EMA 100 et le RSI à la clôture d'une bougie ${d.tf}. L'ordre proposé apparaîtra ici${d.auto ? ", et le mode auto le placera." : "."}</div></div>`;
+      <div class="hint">Le signal naît du croisement EMA 20 / 50 à la clôture d'une bougie ${d.tf}, s'il est validé par l'EMA 100 et le RSI. L'ordre proposé apparaîtra alors ici${d.auto ? ", et le mode auto le placera." : "."}</div></div>`;
   }
   h += `<label class="switch"><span class="t"><b>Mode auto · paper</b><span>Prend chaque signal ${esc(d.symbol)} ${d.tf} tout seul</span></span><input type="checkbox" id="ml-auto" ${d.auto ? "checked" : ""}><span class="knob"></span></label>
     <details class="more"><summary>Réglages actifs ${icon("chev")}</summary><div class="in">
@@ -569,7 +581,7 @@ $("mlscan-run").onclick = async () => {
       return `<td data-s="${esc(c.symbol)}" data-tf="${c.tf}" title="RSI ${fmt(c.rsi, 0)}"><span class="cell ${c.signal ? "sig-" + c.signal : ""}">${main}<span class="s">${subl}</span></span></td>`;
     };
     $("scan-out").innerHTML = table(["Actif"].concat(r.tfs), r.symbols.map((s) => `<tr><td class="l"><b>${esc(s)}</b></td>${r.tfs.map((t) => cell(at[s + "|" + t])).join("")}</tr>`), 'class="mx"')
-      + `<p class="note">BUY / SELL : les 3 filtres valident sur la dernière bougie clôturée (croisement EMA 20/50, EMA 100, RSI). ▲▲ / ▼▼ : EMA 20/50 et EMA 100 alignées ; ▲ / ▼ : EMA 20 vs EMA 50 seulement. Clique une case pour ouvrir l'actif sur ce timeframe.</p>`;
+      + `<p class="note">BUY / SELL : l'EMA 20 croise l'EMA 50 sur la dernière bougie clôturée et l'EMA 100 et le RSI valident. ▲▲ / ▼▼ : EMA 20/50 et EMA 100 alignées ; ▲ / ▼ : EMA 20 vs EMA 50 seulement. Clique une case pour ouvrir l'actif sur ce timeframe.</p>`;
   } catch (e) { $("scan-out").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 };
 $("scan-out").addEventListener("click", (ev) => {

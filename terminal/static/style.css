@@ -231,6 +231,15 @@ td a { text-decoration: none; font-weight: 600; }
 .hero-t .state { font-size: 22px; font-weight: 800; letter-spacing: .02em; line-height: 1.1; }
 .hero-t .state.buy { color: var(--buy); } .hero-t .state.sell { color: var(--sell); } .hero-t .state.idle { color: var(--text); }
 .hero-t .meta { color: var(--muted); font-size: 11.5px; margin-top: 5px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.engine { margin-top: 4px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(217,181,106,.22); background: linear-gradient(160deg, rgba(217,181,106,.08), rgba(217,181,106,.01)); }
+.engine .eh { margin-bottom: 8px; }
+.engine .emas { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
+.engine .emas div { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 10px; background: rgba(0,0,0,.2); font-size: 11px; color: var(--muted); }
+.engine .emas i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.engine .emas b { font-size: 14px; color: var(--text); font-weight: 600; }
+.engine .kv { font-size: 12px; }
+.filters { margin-top: 10px; padding: 10px 14px; border-radius: 14px; border: 1px solid var(--line); background: rgba(255,255,255,.02); }
+.filters .kicker { margin-bottom: 6px; }
 .conds { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .cond-col { padding: 10px; border-radius: 12px; background: rgba(255,255,255,.025); border: 1px solid var(--line); }
 .cond-col h4 { margin: 0 0 6px; font-size: 10.5px; letter-spacing: .14em; }
