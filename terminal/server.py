@@ -758,7 +758,7 @@ def ml_engine_state(bars, ind, i, p):
     nxt = "sell" if above else "buy"
     c = bars[i]["c"]
     filters = []
-    if e100[i] is not None:
+    if e100[i] is not None and p.get("UseEMA100Filter", True):
         filters.append({"name": "Clôture %s EMA 100" % (">" if nxt == "buy" else "<"),
                         "ok": c > e100[i] if nxt == "buy" else c < e100[i],
                         "detail": "%s vs %s" % (ML.rnd(c, p), ML.rnd(e100[i], p))})

@@ -53,6 +53,7 @@ PARAMS = {
     "EMA20Length": 20, "EMA50Length": 50, "EMA100Length": 100,
     # 2. RSI
     "UseRSI": True, "RSILength": 14, "RSIMid": 50.0,
+    "UseEMA100Filter": True,
     # 3. entry
     "EntryMethod": "BODY", "Tolerance": 5.0, "PendingExpiryBars": 10,
     "CancelOnOppositeSignal": True, "CloseOnOppositeSignal": True, "EnterAfterClose": True,
@@ -291,11 +292,12 @@ def checks(bars, ind, i, p):
     fmt = "%." + str(digits(p)) + "f"
     f = lambda x: fmt % x
     out = {
-        "buy": [("Croisement EMA 20 ↑ EMA 50", up, "EMA 20 %s / EMA 50 %s" % (f(e20[i]), f(e50[i]))),
-                ("Clôture > EMA 100", c > e100[i], "%s vs %s" % (f(c), f(e100[i])))],
-        "sell": [("Croisement EMA 20 ↓ EMA 50", down, "EMA 20 %s / EMA 50 %s" % (f(e20[i]), f(e50[i]))),
-                 ("Clôture < EMA 100", c < e100[i], "%s vs %s" % (f(c), f(e100[i])))],
+        "buy": [("Croisement EMA 20 ↑ EMA 50", up, "EMA 20 %s / EMA 50 %s" % (f(e20[i]), f(e50[i])))],
+        "sell": [("Croisement EMA 20 ↓ EMA 50", down, "EMA 20 %s / EMA 50 %s" % (f(e20[i]), f(e50[i])))],
     }
+    if p.get("UseEMA100Filter", True):
+        out["buy"].append(("Clôture > EMA 100", c > e100[i], "%s vs %s" % (f(c), f(e100[i]))))
+        out["sell"].append(("Clôture < EMA 100", c < e100[i], "%s vs %s" % (f(c), f(e100[i]))))
     if p["UseRSI"]:
         out["buy"].append(("RSI > %g" % p["RSIMid"], r[i] > p["RSIMid"], "RSI %.1f" % r[i]))
         out["sell"].append(("RSI < %g" % p["RSIMid"], r[i] < p["RSIMid"], "RSI %.1f" % r[i]))

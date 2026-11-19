@@ -593,7 +593,7 @@ $("scan-out").addEventListener("click", (ev) => {
 const ENTRY_OPTS = [["MARKET", "MARKET · clôture du signal"], ["BODY", "BODY LIMIT · corps + tolérance"], ["EMA20", "EMA 20 · limit"], ["EMA50", "EMA 50 · limit"], ["CORE", "EMA CORE 20/50 · milieu"], ["OTE", "OTE Fibonacci · limit"]];
 const PARAM_GROUPS = [
   ["Moteur EMA", "20 · 50 · 100", [["EMA20Length", "Période EMA 20"], ["EMA50Length", "Période EMA 50"], ["EMA100Length", "Période EMA 100"]]],
-  ["Filtre RSI", "RSI 14 vs 50", [["UseRSI", "Activer le filtre"], ["RSILength", "Période"], ["RSIMid", "Niveau de validation"]]],
+  ["Filtres", "EMA 100 · RSI 14 vs 50", [["UseEMA100Filter", "Filtre EMA 100 (clôture)"], ["UseRSI", "Filtre RSI"], ["RSILength", "Période RSI"], ["RSIMid", "Niveau RSI"]]],
   ["Méthode d'entrée", "limit, expiration, inversion", [["EntryMethod", "Mode d'entrée", ENTRY_OPTS], ["Tolerance", "Tolérance (unités)"], ["PendingExpiryBars", "Expiration (bougies)"],
     ["CancelOnOppositeSignal", "Remplacer sur signal opposé"], ["CloseOnOppositeSignal", "Fermer sur signal opposé"], ["EnterAfterClose", "Entrer dans le nouveau sens"],
     ["OTELevel", "OTE · niveau", [["0.618", "0.618"], ["0.705", "0.705"], ["0.789", "0.789"]]], ["OTELookback", "OTE · impulsion (bougies)"]]],
