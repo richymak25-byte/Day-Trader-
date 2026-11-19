@@ -275,7 +275,13 @@ async function sendOrder() {
 function renderAccount(a) {
   $("account").innerHTML = [["Équité", usd(a.equity)], ["Cash", usd(a.cash)],
     ["P&L total", `<span class="${cls(a.total_pnl)}">${usd(a.total_pnl)}</span>`], ["Réalisé aujourd'hui", `<span class="${cls(a.realized_today)}">${usd(a.realized_today)}</span>`]]
-    .map(([k, v]) => `<div class="kv"><span class="muted">${k}</span><b class="mono">${v}</b></div>`).join("");
+    .map(([k, v]) => `<div class="kv"><span class="muted">${k}</span><b class="mono">${v}</b></div>`).join("") + rulesBox(a.day);
+  S.lock = a.day && a.day.lock ? a.day.message : null;
+  $("t-plan").disabled = !!S.lock;
+  $("t-plan").textContent = S.lock ? "Verrou journalier actif" : "Calculer le plan";
+  $("lockbar").classList.toggle("hidden", !S.lock);
+  $("lockbar").className = "lockbar" + (S.lock ? (a.day.lock.kind === "win" ? " win" : " loss") : " hidden");
+  $("lockbar").textContent = S.lock || "";
   $("tab-positions").innerHTML = a.positions.length ? `<table><tr><th>Symbole</th><th>Qté</th><th>PRU</th><th>Prix</th><th>Valeur</th><th>P&L</th><th></th></tr>
     ${a.positions.map((p) => `<tr><td class="l"><a href="#" data-s="${esc(p.symbol)}" style="color:inherit">${esc(p.symbol)}</a></td><td>${p.qty}</td><td>${fmt(p.avg)}</td><td>${fmt(p.price)}</td><td>${fmt(p.value)}</td>
       <td class="${cls(p.pnl)}">${fmt(p.pnl)} (${pct(p.pnl_pct)})</td><td><button class="sm sell" data-close="${esc(p.symbol)}" data-q="${p.qty}">Clôturer</button></td></tr>`).join("")}</table>` : `<div class="empty">Aucune position ouverte.</div>`;
@@ -292,6 +298,17 @@ $("tab-positions").addEventListener("click", async (ev) => {
   try { renderAccount(await api("/api/paper/order", { symbol: b.dataset.close, side: "sell", qty: Number(b.dataset.q), confirm: true, why: "clôture manuelle" })); toast("Position clôturée"); }
   catch (e) { toast(e.message, true); }
 });
+function rulesBox(d) {
+  if (!d) return "";
+  const lo = -d.loss_limit, hi = d.win_limit, span = hi - lo || 1;
+  const pos = Math.max(0, Math.min(100, ((d.pnl - lo) / span) * 100));
+  const lock = d.lock ? `<span class="tag ${d.lock.kind === "win" ? "g" : "r"}">VERROUILLÉ ${d.lock.kind === "win" ? "GAIN" : "PERTE"}</span>` : `<span class="tag">ouvert</span>`;
+  return `<div class="rules">
+    <div class="kv"><span class="muted">Risque / trade (${fmt(d.risk_pct, 1)} %)</span><b class="mono">${usd(d.risk_per_trade)}</b></div>
+    <div class="kv"><span class="muted">P&L du jour</span><b class="mono ${cls(d.pnl)}">${usd(d.pnl)}</b></div>
+    <div class="lockmeter"><i style="left:${pos}%"></i></div>
+    <div class="kv sm"><span class="down">-${usd(d.loss_limit)}</span>${lock}<span class="up">+${usd(d.win_limit)}</span></div></div>`;
+}
 async function loadAccount() { try { renderAccount(await api("/api/paper")); } catch (e) { toast(e.message, true); } }
 $("reset").onclick = async () => {
   if (!(await confirmBox(`<h3 style="margin-top:0">Réinitialiser le compte paper ?</h3><p>Positions, ordres et historique simulés seront effacés.</p>`))) return;

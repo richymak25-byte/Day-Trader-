@@ -110,6 +110,15 @@ td.l { font-family: inherit; }
 .mbox { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; max-width: 420px; width: 100%; }
 .mact { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 
+.rules { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+.rules .kv { border: 0; }
+.rules .kv.sm { font-size: 11px; align-items: center; }
+.lockmeter { position: relative; height: 6px; border-radius: 3px; margin: 8px 0 4px; background: linear-gradient(90deg, var(--down), #3a414b 50%, var(--up)); }
+.lockmeter i { position: absolute; top: -4px; width: 4px; height: 14px; background: #fff; border-radius: 2px; transform: translateX(-2px); }
+.lockbar { padding: 8px 16px; font-weight: 600; font-size: 12px; text-align: center; }
+.lockbar.loss { background: #3b1717; color: #ffb4b4; border-bottom: 1px solid var(--down); }
+.lockbar.win { background: #12372a; color: #a6f0d0; border-bottom: 1px solid var(--up); }
+
 @media (max-width: 1180px) {
   .grid { grid-template-columns: 220px minmax(0, 1fr); }
   .side { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }

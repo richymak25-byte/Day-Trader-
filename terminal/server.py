@@ -417,7 +417,44 @@ def paper_sweep(doc):
             o["status"] = "filled_" + hit[0]
 
 
-def paper_view(doc):
+RULE_DEFAULTS = {"risk_pct_per_trade": 0.5, "daily_loss_lock_pct": 1.0, "daily_win_lock_pct": 1.0}
+
+
+def day_state(doc, equity, c):
+    """The day's lock. Equity is measured against the New York day's opening equity;
+    once the loss or the win limit is reached, new entries stay locked until tomorrow."""
+    today = ny_today()
+    day = doc.get("day") or {}
+    if day.get("date") != today:
+        day = {"date": today, "start_equity": round(equity, 2), "lock": None}
+    start = day["start_equity"]
+    loss_lim = round(start * float(c["daily_loss_lock_pct"]) / 100, 2)
+    win_lim = round(start * float(c["daily_win_lock_pct"]) / 100, 2)
+    pnl = round(equity - start, 2)
+    if not day.get("lock"):
+        if loss_lim > 0 and pnl <= -loss_lim:
+            day["lock"] = {"kind": "loss", "at": utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), "pnl": pnl}
+        elif win_lim > 0 and pnl >= win_lim:
+            day["lock"] = {"kind": "win", "at": utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), "pnl": pnl}
+    doc["day"] = day
+    return dict(day, pnl=pnl, loss_limit=loss_lim, win_limit=win_lim,
+                risk_per_trade=round(start * float(c["risk_pct_per_trade"]) / 100, 2),
+                risk_pct=c["risk_pct_per_trade"], loss_pct=c["daily_loss_lock_pct"], win_pct=c["daily_win_lock_pct"])
+
+
+def lock_message(day):
+    lk = day.get("lock")
+    if not lk:
+        return None
+    if lk["kind"] == "loss":
+        return ("VERROU JOURNALIER (perte) : %.2f $ aujourd'hui, limite -%.2f $ (%s %% du compte). "
+                "Plus aucune entrée avant demain. Les clôtures restent possibles." % (lk["pnl"], day["loss_limit"], day["loss_pct"]))
+    return ("VERROU JOURNALIER (gain) : +%.2f $ aujourd'hui, objectif +%.2f $ (%s %% du compte) atteint. "
+            "Journée terminée, gains protégés. Les clôtures restent possibles." % (lk["pnl"], day["win_limit"], day["win_pct"]))
+
+
+def paper_view(doc, c=None):
+    c = c or cfg_rules()
     syms = sorted(doc["positions"])
     qs = {q["symbol"]: q for q in quotes(syms)} if syms else {}
     rows, mv = [], 0.0
@@ -429,13 +466,15 @@ def paper_view(doc):
         rows.append({"symbol": s, "qty": pos["qty"], "avg": pos["avg"], "price": p, "value": val,
                      "pnl": (p - pos["avg"]) * pos["qty"], "pnl_pct": (p / pos["avg"] - 1) * 100 if pos["avg"] else 0})
     equity = doc["cash"] + mv
+    day = day_state(doc, equity, c)
+    day["message"] = lock_message(day)
     realized = sum(f["pnl"] for f in doc["fills"])
     today = utcnow().strftime("%Y-%m-%d")
     return {"cash": doc["cash"], "equity": equity, "start_cash": doc["start_cash"],
             "total_pnl": equity - doc["start_cash"], "realized": realized,
             "realized_today": sum(f["pnl"] for f in doc["fills"] if f["at"].startswith(today)),
             "positions": rows, "orders": [o for o in doc["orders"] if o["status"] == "open"],
-            "fills": doc["fills"][:50]}
+            "fills": doc["fills"][:50], "day": day}
 
 
 # ---------------------------------------------------------------- handlers
@@ -445,6 +484,7 @@ CONFIG = {}
 
 def cfg_rules():
     c = dict(BUDGET.DEFAULTS)
+    c.update(RULE_DEFAULTS)
     p = os.path.join(os.getcwd(), "trader", "config.json")
     if os.path.exists(p):
         try:
@@ -454,6 +494,19 @@ def cfg_rules():
             pass
     c.update({k: v for k, v in CONFIG.items() if v is not None and k != "anytime"})
     return c
+
+
+def live_rules():
+    """The rules with today's dollar limits: 0.5 % of the day's opening equity per trade,
+    the loss lock as the daily loss limit. Returns (rules, day)."""
+    c = cfg_rules()
+    with _paper_lock:
+        doc = paper_load(c.get("budget") or 0)
+        day = paper_view(doc, c)["day"]
+        paper_save(doc)
+    c["max_loss_per_trade_usd"] = day["risk_per_trade"]
+    c["max_daily_loss_usd"] = day["loss_limit"]
+    return c, day
 
 
 def _sym(q, key="symbol"):
@@ -506,21 +559,23 @@ def api_size(body):
     sym = _sym(body)
     plan = {"symbol": sym, "side": "buy", "entry": _num(body, "entry"), "stop": _num(body, "stop"),
             "target": _num(body, "target"), "setup": body.get("setup") or "manual", "date": ny_today()}
-    c = cfg_rules()
+    c, day = live_rules()
+    if day.get("lock"):
+        raise ApiError(lock_message(day))
     with _paper_lock:
         cash = paper_load(c.get("budget") or 0)["cash"]
     try:
-        s = BUDGET.size_trade(plan, c, budget=c.get("budget"), cash=cash)
+        s = BUDGET.size_trade(plan, c, budget=day["start_equity"], cash=cash)
     except BUDGET.SizeError as e:
         raise ApiError(str(e))
-    return {"sizing": s, "order": BUDGET.bracket_order(s)}
+    return {"sizing": s, "order": BUDGET.bracket_order(s), "day": day}
 
 
 def api_risk(body):
     order = body.get("order")
     if not isinstance(order, dict):
         raise ApiError("aucun ordre à vérifier")
-    c = cfg_rules()
+    c, day = live_rules()
     with _paper_lock:
         doc = paper_load(c.get("budget") or 0)
     port = {"cash": doc["cash"], "positions": [{"ticker": s, "shares": p["qty"],
@@ -560,6 +615,9 @@ def api_paper_order(body):
     if not price:
         raise ApiError("pas de prix pour %s" % sym)
     if side == "buy":
+        _, day = live_rules()
+        if day.get("lock"):
+            raise ApiError(lock_message(day))
         order = {"symbol": sym, "side": "buy", "qty": str(qty), "type": "market", "time_in_force": "day"}
         if body.get("stop") not in (None, "") and body.get("target") not in (None, ""):
             order.update({"order_class": "bracket", "stop_loss_stop_price": "%.2f" % _num(body, "stop"),
@@ -588,8 +646,9 @@ def api_paper_order(body):
             for o in doc["orders"]:
                 if o["symbol"] == sym and o["status"] == "open":
                     o["status"] = "cancelled"
+        view = paper_view(doc, c)
         paper_save(doc)
-        return paper_view(doc)
+        return view
 
 
 def api_paper(reset=False):
@@ -601,8 +660,9 @@ def api_paper(reset=False):
         else:
             doc = paper_load(c.get("budget") or 0)
             paper_sweep(doc)
+        view = paper_view(doc, c)
         paper_save(doc)
-        return paper_view(doc)
+        return view
 
 
 def api_timemachine(body):
@@ -746,12 +806,18 @@ def main(argv=None):
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--budget", type=float, help="paper account size (default: trader/config.json or 10000)")
-    ap.add_argument("--max-loss", type=float, help="max loss per trade in $")
+    ap.add_argument("--risk-pct", type=float, help="risk per trade, %% of the account (default 0.5)")
+    ap.add_argument("--loss-lock", type=float, help="daily loss lock, %% of the account (default 1.0)")
+    ap.add_argument("--win-lock", type=float, help="daily win lock, %% of the account (default 1.0)")
     ap.add_argument("--anytime", action="store_true",
                     help="paper practice outside market hours (skips only the entry-window rule)")
     a = ap.parse_args(argv)
     CONFIG["anytime"] = a.anytime
-    CONFIG["max_loss_per_trade_usd"] = a.max_loss
+    for key, val in (("risk_pct_per_trade", a.risk_pct), ("daily_loss_lock_pct", a.loss_lock),
+                     ("daily_win_lock_pct", a.win_lock)):
+        if val is not None and not 0 <= val <= 100:
+            ap.error("les pourcentages vont de 0 à 100")
+        CONFIG[key] = val
     CONFIG["budget"] = a.budget
     if not cfg_rules().get("budget"):
         CONFIG["budget"] = 10000.0

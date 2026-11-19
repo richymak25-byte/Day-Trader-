@@ -5,7 +5,8 @@ Python standard uniquement : rien à installer avec pip.
 
 ```bash
 python3 terminal/server.py                      # http://127.0.0.1:8765
-python3 terminal/server.py --budget 25000 --max-loss 100
+python3 terminal/server.py --budget 25000
+python3 terminal/server.py --risk-pct 0.5 --loss-lock 1 --win-lock 1
 python3 terminal/server.py --anytime            # entraînement paper hors séance
 ```
 
@@ -22,6 +23,19 @@ python3 terminal/server.py --anytime            # entraînement paper hors séan
 | Time Machine | 10 000 séances simulées et la même règle rejouée sur chaque séance passée | trader-timemachine |
 | Scanner | Cassure 20 jours, bull flag, reprise de la MM20, survente et rebond sur la watchlist | trader-scanner |
 | Compte paper | Positions, ordres bracket (le stop et la cible se déclenchent sur le dernier prix), historique, P&L | `trader/paper.json` |
+
+## Règles de gestion du risque
+
+| Règle | Valeur par défaut | Effet |
+| --- | --- | --- |
+| Risque par trade | **0,5 %** du compte | La taille de position est calculée pour que la perte au stop ne dépasse pas 0,5 % de l'équité d'ouverture du jour (50 $ sur 10 000 $). |
+| Verrou perte | **-1 %** du compte | Dès que le P&L du jour atteint -1 %, plus aucune entrée jusqu'au lendemain. |
+| Verrou gain | **+1 %** du compte | Dès que le P&L du jour atteint +1 %, la journée est terminée : gains protégés, plus aucune entrée. |
+
+- Le P&L du jour se mesure contre l'équité à l'ouverture de la journée de New York (positions ouvertes comprises).
+- Une fois déclenché, le verrou tient toute la journée, même si le P&L revient.
+- Les clôtures de positions restent toujours possibles.
+- Réglable dans `trader/config.json` (`risk_pct_per_trade`, `daily_loss_lock_pct`, `daily_win_lock_pct`) ou avec `--risk-pct`, `--loss-lock`, `--win-lock`.
 
 ## Sécurité
 

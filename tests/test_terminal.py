@@ -49,3 +49,34 @@ class Paper(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DailyLock(unittest.TestCase):
+    C = {"risk_pct_per_trade": 0.5, "daily_loss_lock_pct": 1.0, "daily_win_lock_pct": 1.0}
+
+    def test_risk_is_half_a_percent_of_the_day_open(self):
+        doc = {}
+        d = T.day_state(doc, 10000, self.C)
+        self.assertEqual((d["risk_per_trade"], d["loss_limit"], d["win_limit"]), (50.0, 100.0, 100.0))
+        self.assertIsNone(d["lock"])
+
+    def test_loss_lock_trips_and_stays(self):
+        doc = {}
+        T.day_state(doc, 10000, self.C)
+        d = T.day_state(doc, 9899, self.C)
+        self.assertEqual(d["lock"]["kind"], "loss")
+        d = T.day_state(doc, 10500, self.C)          # a bounce does not unlock the day
+        self.assertEqual(d["lock"]["kind"], "loss")
+        self.assertIn("perte", T.lock_message(d))
+
+    def test_win_lock_trips(self):
+        doc = {}
+        T.day_state(doc, 10000, self.C)
+        self.assertIsNone(T.day_state(doc, 10099, self.C)["lock"])
+        self.assertEqual(T.day_state(doc, 10100, self.C)["lock"]["kind"], "win")
+
+    def test_new_day_resets(self):
+        doc = {"day": {"date": "2000-01-03", "start_equity": 10000, "lock": {"kind": "loss", "pnl": -200}}}
+        d = T.day_state(doc, 9800, self.C)
+        self.assertIsNone(d["lock"])
+        self.assertEqual(d["start_equity"], 9800)
