@@ -1,4 +1,8 @@
-"""MINDLOCK EMA CORE XAUUSD V3 EMA TOUCH: the strategy engine of the terminal.
+"""MINDLOCK EMA CORE (V3 EMA TOUCH): the strategy engine of the terminal.
+
+Universal: any asset, any of the swing timeframes M5, M15, M30, H1, H4. Stop and
+target are in pips; PipSize 0 means automatic (about 1/10,000 of the price rounded
+to a power of ten: 0.1 on gold, 0.0001 on EURUSD, 0.01 on USDJPY, 1 on bitcoin).
 
 One engine for the three uses: the live signal, the backtest and the paper
 auto-trader. Pure functions on bars [{t, o, h, l, c}], oldest first, closed bars only.
@@ -14,7 +18,7 @@ this module's reading of them; check them against the EA's source:
   candle     buy needs a bull candle (close > open), sell a bear candle (RequireBull/BearCandle)
   break      optional: buy close > previous high, sell close < previous low
   entry      at the close of the signal bar (= next bar's open), one signal per bar
-  exits      stop StopLossPips, target TakeProfitPips (pip = XAUUSD_PipSize = 0.10 $);
+  exits      stop StopLossPips, target TakeProfitPips (pip = PipSize, 0.10 $ on XAUUSD);
              if one bar touches both, the stop is counted first (conservative)
              optional break-even after BreakEvenPips
   reverse    CloseAndReverse: an opposite signal closes the trade and opens the other way
@@ -29,12 +33,11 @@ Education and tooling, not financial advice.
 import datetime
 import math
 
-CONTRACT = 100.0  # ounces per lot on XAUUSD
+TIMEFRAMES = ("M5", "M15", "M30", "H1", "H4")
 
 PARAMS = {
     "EA_Name": "MINDLOCK EMA CORE XAUUSD V3 EMA TOUCH",
-    "AllowedSymbol": "XAUUSD",
-    "Timeframe": "M30",
+
     "FastEMA": 20,
     "SlowEMA": 50,
     "EMATouchReference": 0,
@@ -52,7 +55,8 @@ PARAMS = {
     "UseRiskPercent": True,
     "RiskPercent": 0.5,
     "FixedLot": 1.0,
-    "XAUUSD_PipSize": 0.1,
+    "PipSize": 0.0,
+    "ContractSize": 0.0,
     "StopLossPips": 150,
     "TakeProfitPips": 600,
     "UseBreakEven": False,
@@ -71,7 +75,10 @@ NUM_KEYS = {k for k, v in PARAMS.items() if isinstance(v, (int, float)) and not 
 
 def params(overrides=None):
     p = dict(PARAMS)
-    for k, v in (overrides or {}).items():
+    overrides = dict(overrides or {})
+    if "XAUUSD_PipSize" in overrides and "PipSize" not in overrides:   # the EA's name for it
+        overrides["PipSize"] = overrides["XAUUSD_PipSize"]
+    for k, v in overrides.items():
         if k in BOOL_KEYS:
             p[k] = v in (True, "true", "True", 1, "1")
         elif k in NUM_KEYS:
@@ -81,9 +88,39 @@ def params(overrides=None):
             p[k] = int(x) if isinstance(PARAMS[k], int) else x
     if p["FastEMA"] < 1 or p["SlowEMA"] < 1 or p["RSIPeriod"] < 2:
         raise ValueError("périodes EMA / RSI invalides")
-    if p["StopLossPips"] <= 0 or p["TakeProfitPips"] <= 0 or p["XAUUSD_PipSize"] <= 0:
-        raise ValueError("stop, cible et taille du pip doivent être > 0")
+    if p["StopLossPips"] <= 0 or p["TakeProfitPips"] <= 0:
+        raise ValueError("stop et cible doivent être > 0")
     return p
+
+
+def auto_pip(price):
+    """About 1/10,000 of the price, as a power of ten."""
+    if not price or price <= 0:
+        return 0.01
+    return 10.0 ** (math.floor(math.log10(price)) - 4)
+
+
+def contract_for(symbol):
+    s = (symbol or "").upper()
+    if s.endswith("=X"):
+        return 100000.0          # forex lot
+    if s in ("GC=F", "XAUUSD", "MGC=F"):
+        return 100.0             # gold lot, 100 oz
+    if s in ("SI=F", "XAGUSD"):
+        return 5000.0
+    return 1.0                   # stocks, indices, crypto: 1 unit per lot
+
+
+def for_asset(p, symbol, price, usd_rate=1.0):
+    """The params resolved for one asset: pip size, contract size and the quote
+    currency's value in USD (P&L and sizing are in USD)."""
+    q = dict(p)
+    if not q["PipSize"]:
+        q["PipSize"] = auto_pip(price)
+    if not q["ContractSize"]:
+        q["ContractSize"] = contract_for(symbol)
+    q["UsdRate"] = usd_rate or 1.0
+    return q
 
 
 # ---------------------------------------------------------------- indicators (MetaTrader style)
@@ -130,6 +167,10 @@ def indicators(bars, p):
 
 # ---------------------------------------------------------------- the signal
 
+def _f(x):
+    return ("%.5f" % x).rstrip("0").rstrip(".") if abs(x) < 10 else "%.2f" % x
+
+
 def checks(bars, ind, i, p):
     """Every filter for both sides on closed bar i: {"buy": [(name, ok, detail)], "sell": [...]}."""
     b = bars[i]
@@ -137,7 +178,7 @@ def checks(bars, ind, i, p):
     if f is None or s is None or (p["UseRSI"] and r is None) or i < 1:
         return None
     ref = f if int(p["EMATouchReference"]) == 0 else s
-    tol = p["EMATouchTolerancePips"] * p["XAUUSD_PipSize"]
+    tol = p["EMATouchTolerancePips"] * p["PipSize"]
     touch = b["l"] - tol <= ref <= b["h"] + tol
     ref_name = "EMA %d" % (p["FastEMA"] if int(p["EMATouchReference"]) == 0 else p["SlowEMA"])
     prev = bars[i - 1]
@@ -145,8 +186,8 @@ def checks(bars, ind, i, p):
     for side in ("buy", "sell"):
         up = side == "buy"
         c = [("Tendance EMA %d %s EMA %d" % (p["FastEMA"], ">" if up else "<", p["SlowEMA"]),
-              f > s if up else f < s, "%.2f / %.2f" % (f, s)),
-             ("Touche de la %s" % ref_name, touch, "bougie %.2f – %.2f, EMA %.2f" % (b["l"], b["h"], ref))]
+              f > s if up else f < s, "%s / %s" % (_f(f), _f(s))),
+             ("Touche de la %s" % ref_name, touch, "bougie %s – %s, EMA %s" % (_f(b["l"]), _f(b["h"]), _f(ref)))]
         if p["UseRSI"]:
             if p["RSIMomentum"]:
                 c.append(("RSI %s 50" % (">" if up else "<"), r > 50 if up else r < 50, "RSI %.1f" % r))
@@ -154,13 +195,13 @@ def checks(bars, ind, i, p):
                 c.append(("RSI pas en zone extrême (%s %.0f)" % ("<" if up else ">", p["RSIUpper"] if up else p["RSILower"]),
                           r < p["RSIUpper"] if up else r > p["RSILower"], "RSI %.1f" % r))
         if up and p["RequireBullCandle"]:
-            c.append(("Bougie haussière", b["c"] > b["o"], "O %.2f → C %.2f" % (b["o"], b["c"])))
+            c.append(("Bougie haussière", b["c"] > b["o"], "O %s → C %s" % (_f(b["o"]), _f(b["c"]))))
         if not up and p["RequireBearCandle"]:
-            c.append(("Bougie baissière", b["c"] < b["o"], "O %.2f → C %.2f" % (b["o"], b["c"])))
+            c.append(("Bougie baissière", b["c"] < b["o"], "O %s → C %s" % (_f(b["o"]), _f(b["c"]))))
         if up and p["RequireBreakHigh"]:
-            c.append(("Clôture > plus haut précédent", b["c"] > prev["h"], "%.2f vs %.2f" % (b["c"], prev["h"])))
+            c.append(("Clôture > plus haut précédent", b["c"] > prev["h"], "%s vs %s" % (_f(b["c"]), _f(prev["h"]))))
         if not up and p["RequireBreakLow"]:
-            c.append(("Clôture < plus bas précédent", b["c"] < prev["l"], "%.2f vs %.2f" % (b["c"], prev["l"])))
+            c.append(("Clôture < plus bas précédent", b["c"] < prev["l"], "%s vs %s" % (_f(b["c"]), _f(prev["l"]))))
         out[side] = c
     return out
 
@@ -175,28 +216,37 @@ def signal_at(bars, ind, i, p):
     return None
 
 
+def digits(p):
+    """Price decimals: one more than the pip's (0.1 -> 2, 0.0001 -> 5), at least 2."""
+    return max(2, int(round(-math.log10(p["PipSize"]))) + 1) if p["PipSize"] < 1 else 2
+
+
 def levels(side, entry, p):
-    pip = p["XAUUSD_PipSize"]
+    pip, nd = p["PipSize"], digits(p)
     sl_d, tp_d = p["StopLossPips"] * pip, p["TakeProfitPips"] * pip
     if side == "buy":
-        return round(entry - sl_d, 2), round(entry + tp_d, 2)
-    return round(entry + sl_d, 2), round(entry - tp_d, 2)
+        return round(entry - sl_d, nd), round(entry + tp_d, nd)
+    return round(entry + sl_d, nd), round(entry - tp_d, nd)
 
 
 def lots_for(balance, p):
     if not p["UseRiskPercent"]:
         return round(p["FixedLot"], 2)
     risk_usd = balance * p["RiskPercent"] / 100.0
-    per_lot = p["StopLossPips"] * p["XAUUSD_PipSize"] * CONTRACT
-    return max(0.0, math.floor(risk_usd / per_lot * 100) / 100.0)
+    per_lot = risk_per_lot(p)
+    return max(0.0, math.floor(risk_usd / per_lot * 100) / 100.0) if per_lot > 0 else 0.0
 
 
-def pnl_usd(side, entry, exit_, lots):
-    return (exit_ - entry) * (1 if side == "buy" else -1) * lots * CONTRACT
+def risk_per_lot(p):
+    return p["StopLossPips"] * p["PipSize"] * p.get("ContractSize", 1) * p.get("UsdRate", 1)
+
+
+def pnl_usd(side, entry, exit_, lots, p):
+    return (exit_ - entry) * (1 if side == "buy" else -1) * lots * p.get("ContractSize", 1) * p.get("UsdRate", 1)
 
 
 def pips(side, entry, exit_, p):
-    return (exit_ - entry) * (1 if side == "buy" else -1) / p["XAUUSD_PipSize"]
+    return (exit_ - entry) * (1 if side == "buy" else -1) / p["PipSize"]
 
 
 # ---------------------------------------------------------------- one step (shared by backtest and live)
@@ -209,31 +259,32 @@ def manage(pos, bar, p):
             return pos["sl"], "stop" if pos["sl"] < pos["entry"] else "break-even"
         if bar["h"] >= pos["tp"]:
             return pos["tp"], "cible"
-        if p["UseBreakEven"] and bar["h"] - pos["entry"] >= p["BreakEvenPips"] * p["XAUUSD_PipSize"]:
+        if p["UseBreakEven"] and bar["h"] - pos["entry"] >= p["BreakEvenPips"] * p["PipSize"]:
             pos["sl"] = max(pos["sl"], pos["entry"])
     else:
         if bar["h"] >= pos["sl"]:
             return pos["sl"], "stop" if pos["sl"] > pos["entry"] else "break-even"
         if bar["l"] <= pos["tp"]:
             return pos["tp"], "cible"
-        if p["UseBreakEven"] and pos["entry"] - bar["l"] >= p["BreakEvenPips"] * p["XAUUSD_PipSize"]:
+        if p["UseBreakEven"] and pos["entry"] - bar["l"] >= p["BreakEvenPips"] * p["PipSize"]:
             pos["sl"] = min(pos["sl"], pos["entry"])
     return None
 
 
 def close_trade(pos, price, t, reason, p):
-    return dict(pos, exit=round(price, 2), exit_t=t, reason=reason,
+    return dict(pos, exit=round(price, digits(p)), exit_t=t, reason=reason,
                 pips=round(pips(pos["side"], pos["entry"], price, p), 1),
-                pnl=round(pnl_usd(pos["side"], pos["entry"], price, pos["lots"]), 2))
+                pnl=round(pnl_usd(pos["side"], pos["entry"], price, pos["lots"], p), 2))
 
 
 def open_trade(side, bar, balance, p):
     entry = bar["c"]
     sl, tp = levels(side, entry, p)
+    nd = digits(p)
     lots = lots_for(balance, p)
     if lots <= 0:
         return None
-    return {"side": side, "entry": round(entry, 2), "t": bar["t"], "sl": sl, "tp": tp, "lots": lots}
+    return {"side": side, "entry": round(entry, nd), "t": bar["t"], "sl": sl, "tp": tp, "lots": lots}
 
 
 def lock_state(day_pnl, day_start, p):
@@ -282,7 +333,7 @@ def backtest(bars, p, balance=100000.0):
                 locked_days.add((d, lk))
             if pos is None and not lk:
                 pos = open_trade(sig, bar, bal, p)
-        open_pnl = pnl_usd(pos["side"], pos["entry"], bar["c"], pos["lots"]) if pos else 0.0
+        open_pnl = pnl_usd(pos["side"], pos["entry"], bar["c"], pos["lots"], p) if pos else 0.0
         eq = bal + open_pnl
         peak = max(peak, eq)
         max_dd = max(max_dd, peak - eq)
@@ -306,6 +357,22 @@ def backtest(bars, p, balance=100000.0):
         "locked_days": len(locked_days),
         "open_position": pos, "trade_list": trades[-200:][::-1], "curve": curve, "markers": markers[-400:],
     }
+
+
+# ---------------------------------------------------------------- timeframes
+
+def aggregate(bars, seconds):
+    """Group bars into buckets of `seconds` aligned on UTC (H4 from H1 bars)."""
+    out = []
+    for b in bars:
+        k = b["t"] - b["t"] % seconds
+        if out and out[-1]["t"] == k:
+            o = out[-1]
+            o["h"], o["l"], o["c"] = max(o["h"], b["h"]), min(o["l"], b["l"]), b["c"]
+            o["v"] = o.get("v", 0) + b.get("v", 0)
+        else:
+            out.append({"t": k, "o": b["o"], "h": b["h"], "l": b["l"], "c": b["c"], "v": b.get("v", 0)})
+    return out
 
 
 # ---------------------------------------------------------------- MT5 CSV import

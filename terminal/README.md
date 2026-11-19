@@ -23,10 +23,11 @@ python3 terminal/server.py --anytime            # entraînement paper hors séan
 | Scanner | Cassure 20 jours, bull flag, reprise de la MM20, survente et rebond sur la watchlist | trader-scanner |
 | Compte paper | Positions, ordres bracket (le stop et la cible se déclenchent sur le dernier prix), historique, P&L | `trader/paper.json` |
 
-## Stratégie MINDLOCK EMA CORE (XAUUSD M30)
+## Stratégie MINDLOCK EMA CORE (universelle)
 
-Le terminal fait tourner la stratégie de l'Expert Advisor *MINDLOCK EMA CORE XAUUSD V3 EMA TOUCH*,
-avec les mêmes paramètres (code : `terminal/mindlock.py`).
+Le terminal fait tourner la stratégie de l'Expert Advisor *MINDLOCK EMA CORE V3 EMA TOUCH*
+sur **n'importe quel actif** (or, forex, indices, actions, crypto), en **M5, M15, M30, H1 et H4**.
+Le code est dans `terminal/mindlock.py`.
 
 | Filtre | Achat | Vente |
 | --- | --- | --- |
@@ -35,18 +36,22 @@ avec les mêmes paramètres (code : `terminal/mindlock.py`).
 | RSI 14 momentum | RSI > 50 | RSI < 50 |
 | RSI extrême | RSI < 75 | RSI > 25 |
 | Bougie | haussière | baissière |
-| Sorties | stop 150 pips (15 $), cible 600 pips (60 $) | idem |
+| Sorties | stop 150 pips, cible 600 pips | idem |
 
-Clôture et inversion sur signal opposé, une position maximum, un signal par bougie.
-La taille risque 0,5 % du compte (0,33 lot sur 100 000 $).
-Le verrou journalier est à -2 % / +6 % du compte.
+Clôture et inversion sur signal opposé, une position maximum par actif et par timeframe.
+Le risque par trade est de 0,5 % du compte, et le verrou journalier de -2 % / +6 % sur tout le compte.
 
-- **Panneau MINDLOCK** : signal de la dernière bougie M30 clôturée, chaque filtre ✓/✗, taille, exécution paper en un clic.
-- **Mode auto (paper)** : le serveur prend chaque signal à la clôture de chaque bougie M30, avec inversion, stop, cible et verrou.
-- **Backtest** : sur les 60 derniers jours (Yahoo, or à terme GC=F) ou sur ton historique M30 exporté de MetaTrader (CSV), pour couvrir 2020 → aujourd'hui.
-- **Réglages** : tous les paramètres sont modifiables dans l'onglet Backtest, puis « Enregistrer comme réglages live » (`trader/mindlock.json`).
+**Le pip s'adapte à l'actif** (`PipSize` = 0, automatique) : environ 1/10 000 du prix.
+Ça donne 0,1 sur l'or (comme `XAUUSD_PipSize`), 0,0001 sur EURUSD, 0,01 sur USDJPY et sur les actions, et 1 sur le bitcoin.
+**Le contrat** : 100 000 en forex, 100 oz sur l'or, 1 unité ailleurs.
+**Les devises** : le P&L et la taille sont convertis en dollars quand l'actif est coté dans une autre devise (EUR, GBP, JPY…).
 
-Données : l'or à terme COMEX (GC=F) suit le spot XAUUSD mais avec un écart de prix ; le spread et le slippage ne sont pas simulés.
+- **Panneau MINDLOCK** : choix du timeframe, signal de la dernière bougie clôturée avec chaque filtre ✓/✗, taille, exécution paper, mode auto par actif et par timeframe, liste de toutes les positions MINDLOCK.
+- **Scanner MINDLOCK** : toute la watchlist × M5 → H4 en un tableau ; clique une case pour ouvrir l'actif.
+- **Backtest** : sur l'actif et le timeframe affichés ; Yahoo donne 60 jours en M5 / M15 / M30 et 2 ans en H1 / H4 (H4 construit à partir du H1). Un export CSV MetaTrader permet de remonter plus loin.
+- **Réglages** : dans l'onglet Backtest, puis « Enregistrer comme réglages live » (`trader/mindlock.json`).
+
+Données Yahoo gratuites : l'or est le contrat à terme COMEX (GC=F), proche du spot XAUUSD de ton courtier. Le spread et le slippage ne sont pas simulés.
 
 ## Règles de gestion du risque
 

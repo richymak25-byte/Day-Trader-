@@ -91,21 +91,40 @@ def bar(t, o, h, l, c):
 
 class Mindlock(unittest.TestCase):
     def test_default_params_match_the_ea(self):
-        p = ML.params()
+        p = ML.for_asset(ML.params(), "GC=F", 3600.0)
         self.assertEqual((p["FastEMA"], p["SlowEMA"], p["RSIPeriod"], p["StopLossPips"], p["TakeProfitPips"]),
                          (20, 50, 14, 150, 600))
-        self.assertEqual((p["RSIUpper"], p["RSILower"], p["XAUUSD_PipSize"], p["RiskPercent"]), (75.0, 25.0, 0.1, 0.5))
+        self.assertEqual((p["RSIUpper"], p["RSILower"], p["PipSize"], p["ContractSize"], p["RiskPercent"]),
+                         (75.0, 25.0, 0.1, 100.0, 0.5))
         self.assertEqual(ML.levels("buy", 2000.0, p), (1985.0, 2060.0))
         self.assertEqual(ML.levels("sell", 2000.0, p), (2015.0, 1940.0))
 
     def test_lot_size_risks_half_a_percent(self):
-        p = ML.params()
+        p = ML.for_asset(ML.params(), "GC=F", 3600.0)
         self.assertEqual(ML.lots_for(100000, p), 0.33)        # 500 $ / (15 $ x 100 oz)
         self.assertEqual(ML.lots_for(10000, p), 0.03)
         self.assertEqual(ML.lots_for(10000, ML.params({"UseRiskPercent": False})), 1.0)
 
+    def test_universal_pips_and_contracts(self):
+        eur = ML.for_asset(ML.params(), "EURUSD=X", 1.0972)
+        self.assertEqual((eur["PipSize"], eur["ContractSize"]), (0.0001, 100000.0))
+        self.assertEqual(ML.levels("buy", 1.1, eur), (1.085, 1.16))
+        jpy = ML.for_asset(ML.params(), "USDJPY=X", 150.2)
+        self.assertEqual(jpy["PipSize"], 0.01)
+        btc = ML.for_asset(ML.params(), "BTC-USD", 62000.0)
+        self.assertEqual((btc["PipSize"], btc["ContractSize"]), (1.0, 1.0))
+        eu_stock = ML.for_asset(ML.params(), "MC.PA", 390.0, usd_rate=1.1)
+        self.assertAlmostEqual(ML.risk_per_lot(eu_stock), 150 * 0.01 * 1 * 1.1)
+        self.assertEqual(ML.params({"XAUUSD_PipSize": 0.1})["PipSize"], 0.1)    # the EA's input name
+
+    def test_h4_from_h1(self):
+        h1 = [{"t": 14400 + 3600 * k, "o": k, "h": k + 1, "l": k - 1, "c": k + 0.5} for k in range(8)]
+        h4 = ML.aggregate(h1, 14400)
+        self.assertEqual(len(h4), 2)
+        self.assertEqual((h4[0]["o"], h4[0]["h"], h4[0]["l"], h4[0]["c"]), (0, 4, -1, 3.5))
+
     def test_buy_signal_needs_every_filter(self):
-        p = ML.params({"FastEMA": 3, "SlowEMA": 5, "RSIPeriod": 3})
+        p = ML.for_asset(ML.params({"FastEMA": 3, "SlowEMA": 5, "RSIPeriod": 3}), "TEST", 100.0)
         closes = [100 + i * 0.5 + (0.8 if i % 2 else 0) for i in range(30)]
         bars = [bar(i * 1800, c - 0.2, c + 0.3, c - 0.6, c) for i, c in enumerate(closes)]
         ind = ML.indicators(bars, p)
@@ -119,7 +138,7 @@ class Mindlock(unittest.TestCase):
         self.assertEqual(ML.signal_at(bars, ind, i, p) == "buy", all(names.values()))
 
     def test_stop_counts_first_when_both_are_hit(self):
-        p = ML.params()
+        p = ML.for_asset(ML.params(), "GC=F", 2000.0)
         pos = {"side": "buy", "entry": 2000.0, "sl": 1985.0, "tp": 2060.0, "lots": 1.0, "t": 0}
         self.assertEqual(ML.manage(pos, bar(1, 2000, 2070, 1980, 2000), p), (1985.0, "stop"))
         tr = ML.close_trade(pos, 2060.0, 2, "cible", p)
@@ -131,6 +150,6 @@ class Mindlock(unittest.TestCase):
                         for k in range(200))
         bars = ML.parse_csv("<DATE>\t<TIME>\t<OPEN>\t<HIGH>\t<LOW>\t<CLOSE>\t<TICKVOL>\n" + csv)
         self.assertEqual(len(bars), 200)
-        r = ML.backtest(bars, ML.params(), 100000)
+        r = ML.backtest(bars, ML.for_asset(ML.params(), "GC=F", 2000.0), 100000)
         self.assertEqual(r["bars"], 200)
         self.assertGreaterEqual(r["trades"], 0)

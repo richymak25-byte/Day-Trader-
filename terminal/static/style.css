@@ -53,7 +53,8 @@ h2 { margin: 0; font-size: 11px; letter-spacing: .12em; text-transform: uppercas
 .chead { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
 .sym { font-size: 18px; font-weight: 700; } .sym .muted { font-size: 13px; font-weight: 400; }
 .px { font-size: 22px; } #c-chg { font-size: 14px; }
-.periods { display: flex; gap: 2px; background: var(--panel2); border-radius: 8px; padding: 3px; }
+.periods { display: flex; gap: 2px; background: var(--panel2); border-radius: 8px; padding: 3px; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.chead > div:first-child { min-width: 0; }
 .periods button { background: transparent; color: var(--muted); padding: 4px 9px; font-weight: 500; }
 .periods button.on { background: var(--line); color: var(--text); }
 .stats { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 11px; margin: 6px 0; }
@@ -120,6 +121,11 @@ td.l { font-family: inherit; }
 .lockbar.win { background: #12372a; color: #a6f0d0; border-bottom: 1px solid var(--up); }
 
 .mlpanel { border-color: #6b5420; }
+.tfsel { margin-bottom: 10px; justify-content: space-between; }
+.tfsel button { flex: 1; }
+.mx td { text-align: center; cursor: pointer; } .mx td.l { text-align: left; }
+.mx .sig { font-weight: 800; } .mx td:hover { background: var(--panel2); }
+.plist .kv { font-size: 12px; align-items: center; }
 .mlsig { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .mlsig .big { font-size: 20px; font-weight: 800; letter-spacing: .04em; }
 .mlcols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

@@ -50,7 +50,7 @@ SCAN = _skill("trader-scanner", "scan")
 sys.path.insert(0, HERE)
 import mindlock as ML  # noqa: E402
 
-GOLD = "GC=F"  # free M30 gold data on Yahoo (COMEX futures, tracks spot XAUUSD)
+
 
 
 def utcnow():
@@ -108,6 +108,8 @@ RANGES = {  # UI period -> (yahoo range, interval)
 
 
 def chart(sym, period="1D", ttl=15, include_pre=False):
+    if period in ("M5", "M15", "H1", "H4"):
+        return tf_chart(sym, period, ttl)
     rng, interval = RANGES.get(period, RANGES["1D"])
     url = ("https://query2.finance.yahoo.com/v8/finance/chart/%s?range=%s&interval=%s&includePrePost=%s"
            % (urllib.parse.quote(sym), rng, interval, "true" if include_pre else "false"))
@@ -139,6 +141,13 @@ def chart(sym, period="1D", ttl=15, include_pre=False):
             "day_low": meta.get("regularMarketDayLow"), "volume": meta.get("regularMarketVolume"),
             "high52": meta.get("fiftyTwoWeekHigh"), "low52": meta.get("fiftyTwoWeekLow"),
             "time": meta.get("regularMarketTime"), "bars": bars}
+
+
+def tf_chart(sym, tf, ttl=15):
+    """Chart payload for a strategy timeframe (H4 built from H1), forming bar included."""
+    bars, meta = tf_bars(sym, tf, closed=False, ttl=ttl)
+    day = chart(sym, "1D", ttl=ttl)
+    return dict(day, interval=TF_SPEC[tf][1] if tf != "H4" else "4h", period=tf, bars=bars[-1500:])
 
 
 def quote(sym):
@@ -471,16 +480,7 @@ def paper_view(doc, c=None):
         mv += val
         rows.append({"symbol": s, "qty": pos["qty"], "avg": pos["avg"], "price": p, "value": val,
                      "pnl": (p - pos["avg"]) * pos["qty"], "pnl_pct": (p / pos["avg"] - 1) * 100 if pos["avg"] else 0})
-    ml = (doc.get("mindlock") or {}).get("position")
-    ml_open = 0.0
-    if ml:
-        try:
-            gp = quote(GOLD)["price"]
-            ml_open = ML.pnl_usd(ml["side"], ml["entry"], gp, ml["lots"])
-            ml["price"], ml["pnl"] = gp, round(ml_open, 2)
-        except Exception:
-            pass
-    equity = doc["cash"] + mv + ml_open
+    equity = doc["cash"] + mv + ml_open_pnl(doc)
     day = day_state(doc, equity, c)
     day["message"] = lock_message(day)
     realized = sum(f["pnl"] for f in doc["fills"])
@@ -517,7 +517,14 @@ def cfg_rules():
     return c
 
 
-# ---------------------------------------------------------------- MINDLOCK EMA CORE
+# ---------------------------------------------------------------- MINDLOCK EMA CORE (universal)
+
+TF_SPEC = {  # timeframe -> (yahoo range, yahoo interval, seconds per bar, bars to aggregate)
+    "M5": ("60d", "5m", 300, 1), "M15": ("60d", "15m", 900, 1), "M30": ("60d", "30m", 1800, 1),
+    "H1": ("730d", "60m", 3600, 1), "H4": ("730d", "60m", 14400, 4),
+}
+TF_DEPTH = {"M5": "60 jours", "M15": "60 jours", "M30": "60 jours", "H1": "2 ans", "H4": "2 ans"}
+
 
 def ml_path():
     return os.path.join(os.getcwd(), "trader", "mindlock.json")
@@ -531,90 +538,171 @@ def ml_params():
         return ML.params()
 
 
-def gold_bars(ttl=30):
-    url = "https://query2.finance.yahoo.com/v8/finance/chart/%s?range=60d&interval=30m" % urllib.parse.quote(GOLD)
-    data = json.loads(http_get(url, ttl=ttl))
+def _tf(tf):
+    tf = str(tf or "M30").upper()
+    if tf not in TF_SPEC:
+        raise ApiError("timeframe inconnu : %s (M5, M15, M30, H1, H4)" % tf)
+    return tf
+
+
+def tf_bars(sym, tf, closed=True, ttl=30):
+    """Bars of one symbol on one timeframe, oldest first; closed bars only by default."""
+    rng, interval, secs, _ = TF_SPEC[tf]
+    url = ("https://query2.finance.yahoo.com/v8/finance/chart/%s?range=%s&interval=%s"
+           % (urllib.parse.quote(sym), rng, interval))
+    data = json.loads(http_get(url, ttl=ttl, timeout=25))
     res = (data.get("chart") or {}).get("result")
     if not res:
-        raise ApiError("pas de données M30 pour l'or", 502)
+        err = ((data.get("chart") or {}).get("error") or {}).get("description") or "symbole inconnu"
+        raise ApiError("%s : %s" % (sym, err), 404)
     r = res[0]
     q = ((r.get("indicators") or {}).get("quote") or [{}])[0]
-    now = time.time()
     bars = []
     for i, t in enumerate(r.get("timestamp") or []):
         vals = [(q.get(k) or [None] * (i + 1))[i] for k in ("open", "high", "low", "close")]
-        if t is None or None in vals or t + 1800 > now:   # closed bars only
+        if t is None or None in vals:
             continue
-        bars.append({"t": int(t), "o": vals[0], "h": vals[1], "l": vals[2], "c": vals[3]})
-    if len(bars) < 60:
-        raise ApiError("trop peu de bougies M30 pour l'or", 502)
-    return bars
+        bars.append({"t": int(t), "o": vals[0], "h": vals[1], "l": vals[2], "c": vals[3],
+                     "v": int((q.get("volume") or [0] * (i + 1))[i] or 0)})
+    if TF_SPEC[tf][3] > 1:
+        bars = ML.aggregate(bars, secs)
+    if closed:
+        now = time.time()
+        bars = [b for b in bars if b["t"] + secs <= now]
+    meta = r.get("meta") or {}
+    return bars, meta
+
+
+_fx = {}
+
+
+def usd_rate(ccy):
+    """Value of one unit of `ccy` in USD (P&L of non-USD quotes)."""
+    if ccy in ("GBp", "GBX"):          # London quotes in pence
+        return usd_rate("GBP") / 100
+    ccy = (ccy or "USD").upper()
+    if ccy == "USD":
+        return 1.0
+    hit = _fx.get(ccy)
+    if hit and time.time() - hit[0] < 600:
+        return hit[1]
+    rate = quote("%sUSD=X" % ccy)["price"]
+    if not rate:
+        raise ApiError("pas de taux de change %s/USD" % ccy)
+    _fx[ccy] = (time.time(), rate)
+    return rate
+
+
+def ml_asset(sym, tf, closed=True, ttl=30):
+    """(bars, resolved params, meta) for one symbol and timeframe."""
+    bars, meta = tf_bars(sym, tf, closed, ttl)
+    p0 = ml_params()
+    if len(bars) < p0["SlowEMA"] + 10:
+        raise ApiError("trop peu de bougies %s pour %s (%d)" % (tf, sym, len(bars)), 502)
+    ccy = meta.get("currency") or "USD"
+    try:
+        rate = usd_rate(ccy)
+    except ApiError:
+        rate = 1.0
+    p = ML.for_asset(p0, sym, bars[-1]["c"], rate)
+    p["Currency"] = ccy
+    return bars, p, meta
+
+
+def ml_key(sym, tf):
+    return "%s|%s" % (sym, tf)
 
 
 def ml_state(doc):
     st = doc.setdefault("mindlock", {})
-    st.setdefault("auto", False)
-    st.setdefault("position", None)
+    if "position" in st or isinstance(st.get("auto"), bool):        # first version: gold M30 only
+        old_pos, old_auto = st.pop("position", None), st.pop("auto", False)
+        st["positions"] = {ml_key("GC=F", "M30"): old_pos} if old_pos else {}
+        st["auto"] = [ml_key("GC=F", "M30")] if old_auto is True else []
+        st["last_t"] = {}
+    st.setdefault("auto", [])
+    st.setdefault("positions", {})
     st.setdefault("trades", [])
-    st.setdefault("last_t", None)
+    if not isinstance(st.get("last_t"), dict):
+        st["last_t"] = {}
     return st
 
 
-def ml_close(doc, price, t, reason, p):
+def ml_close(doc, key, price, t, reason, p):
     st = ml_state(doc)
-    tr = ML.close_trade(st["position"], price, t, reason, p)
+    pos = st["positions"].pop(key)
+    tr = ML.close_trade(pos, price, t, reason, p)
+    tr["key"] = key
     st["trades"].insert(0, tr)
     del st["trades"][300:]
     doc["cash"] = round(doc["cash"] + tr["pnl"], 2)
-    doc["fills"].insert(0, {"at": utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), "symbol": "XAUUSD",
+    doc["fills"].insert(0, {"at": utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), "symbol": key.replace("|", " "),
                             "side": "sell" if tr["side"] == "buy" else "buy", "qty": tr["lots"],
                             "price": tr["exit"], "pnl": tr["pnl"], "why": "MINDLOCK %s" % reason})
-    st["position"] = None
     return tr
 
 
-def ml_open(doc, side, bar, p, why):
+def ml_open(doc, key, side, bar, p, why):
     st = ml_state(doc)
     pos = ML.open_trade(side, bar, paper_view(doc)["day"]["start_equity"], p)
     if not pos:
         raise ApiError("taille nulle : compte trop petit pour %s %% de risque avec un stop de %d pips"
                        % (p["RiskPercent"], p["StopLossPips"]))
-    st["position"] = pos
-    doc["fills"].insert(0, {"at": utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), "symbol": "XAUUSD", "side": side,
-                            "qty": pos["lots"], "price": pos["entry"], "pnl": 0.0,
-                            "why": "MINDLOCK %s" % why,
-                            "max_loss": round(p["StopLossPips"] * p["XAUUSD_PipSize"] * ML.CONTRACT * pos["lots"], 2)})
+    pos.update({"key": key, "pip": p["PipSize"], "contract": p["ContractSize"], "usd_rate": p["UsdRate"],
+                "risk_usd": round(ML.risk_per_lot(p) * pos["lots"], 2)})
+    st["positions"][key] = pos
+    doc["fills"].insert(0, {"at": utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), "symbol": key.replace("|", " "),
+                            "side": side, "qty": pos["lots"], "price": pos["entry"], "pnl": 0.0,
+                            "why": "MINDLOCK %s" % why, "max_loss": pos["risk_usd"]})
     return pos
 
 
-def ml_step(doc, bars=None):
-    """Walk every closed M30 bar since the last one seen: stop / target first, then the
-    signal (auto mode only), close-and-reverse, the day lock."""
+def ml_step(doc, key, data=None):
+    """Walk every closed bar of one symbol/timeframe since the last one seen: stop /
+    target first, then the signal (auto mode only), close-and-reverse, the day lock."""
     st = ml_state(doc)
-    p = ml_params()
-    bars = bars or gold_bars()
+    sym, tf = key.split("|")
+    bars, p, _ = data or ml_asset(sym, tf)
     ind = ML.indicators(bars, p)
-    if st["last_t"] is None:
-        st["last_t"] = bars[-1]["t"]
+    last = st["last_t"].get(key)
+    if last is None:
+        st["last_t"][key] = bars[-1]["t"]
         return
     for i, bar in enumerate(bars):
-        if bar["t"] <= st["last_t"]:
+        if bar["t"] <= last:
             continue
-        st["last_t"] = bar["t"]
-        if st["position"]:
-            hit = ML.manage(st["position"], bar, p)
+        st["last_t"][key] = bar["t"]
+        if key in st["positions"]:
+            pos = st["positions"][key]
+            pp = dict(p, PipSize=pos.get("pip", p["PipSize"]), UsdRate=pos.get("usd_rate", p["UsdRate"]))
+            hit = ML.manage(pos, bar, pp)
             if hit:
-                ml_close(doc, hit[0], bar["t"], hit[1], p)
-        if not st["auto"]:
+                ml_close(doc, key, hit[0], bar["t"], hit[1], pp)
+        if key not in st["auto"]:
             continue
         sig = ML.signal_at(bars, ind, i, p)
         if not sig:
             continue
-        pos = st["position"]
+        pos = st["positions"].get(key)
         if pos and pos["side"] != sig and p["CloseAndReverse"]:
-            ml_close(doc, bar["c"], bar["t"], "inversion", p)
-        if st["position"] is None and not paper_view(doc)["day"].get("lock"):
-            ml_open(doc, sig, bar, p, "auto")
+            ml_close(doc, key, bar["c"], bar["t"], "inversion", p)
+        if key not in st["positions"] and not paper_view(doc)["day"].get("lock"):
+            ml_open(doc, key, sig, bar, p, "auto")
+
+
+def ml_open_pnl(doc):
+    """Mark every open MINDLOCK position to the last price; returns the total in USD."""
+    total = 0.0
+    for key, pos in ml_state(doc)["positions"].items():
+        try:
+            px = quote(key.split("|")[0])["price"]
+        except Exception:
+            continue
+        pnl = (px - pos["entry"]) * (1 if pos["side"] == "buy" else -1) * pos["lots"] \
+            * pos.get("contract", 1) * pos.get("usd_rate", 1)
+        pos["price"], pos["pnl"] = px, round(pnl, 2)
+        total += pnl
+    return total
 
 
 def ml_loop():
@@ -625,17 +713,27 @@ def ml_loop():
             with _paper_lock:
                 doc = paper_load(c.get("budget") or 0)
                 st = ml_state(doc)
-                if st["auto"] or st["position"]:
-                    ml_step(doc)
-                    paper_save(doc)
+                for key in sorted(set(st["auto"]) | set(st["positions"])):
+                    try:
+                        ml_step(doc, key)
+                    except Exception as e:
+                        if os.environ.get("TERMINAL_LOG"):
+                            print("mindlock", key, e)
+                paper_save(doc)
         except Exception as e:  # keep the loop alive
             if os.environ.get("TERMINAL_LOG"):
                 print("mindlock loop:", e)
 
 
+def _sym_tf(q):
+    return _sym(q), _tf(q.get("tf"))
+
+
 def api_ml_signal(q):
-    p = ml_params()
-    bars = gold_bars()
+    sym, tf = _sym_tf(q)
+    key = ml_key(sym, tf)
+    data = ml_asset(sym, tf)
+    bars, p, meta = data
     ind = ML.indicators(bars, p)
     i = len(bars) - 1
     ch = ML.checks(bars, ind, i, p) or {"buy": [], "sell": []}
@@ -643,10 +741,11 @@ def api_ml_signal(q):
     c = cfg_rules()
     with _paper_lock:
         doc = paper_load(c.get("budget") or 0)
-        ml_step(doc, bars)
+        st = ml_state(doc)
+        if key in st["auto"] or key in st["positions"]:
+            ml_step(doc, key, data)
         view = paper_view(doc, c)
         paper_save(doc)
-        st = ml_state(doc)
     last = bars[-1]
     sides = {}
     for side in ("buy", "sell"):
@@ -656,27 +755,64 @@ def api_ml_signal(q):
     recent = [{"t": bars[j]["t"], "side": s} for j in range(max(0, i - 400), i + 1)
               for s in [ML.signal_at(bars, ind, j, p)] if s]
     lots = ML.lots_for(view["day"]["start_equity"], p)
-    return {"params": p, "symbol": GOLD, "bar": last, "signal": sig, "sides": sides,
+    return {"params": p, "base_params": ml_params(), "symbol": sym, "tf": tf, "key": key, "name": meta.get("shortName") or sym,
+            "bar": last, "bar_seconds": TF_SPEC[tf][2], "signal": sig, "sides": sides,
             "ema_fast": ind["fast"][i], "ema_slow": ind["slow"][i], "rsi": ind["rsi"][i],
-            "lots": lots, "risk_usd": round(lots * p["StopLossPips"] * p["XAUUSD_PipSize"] * ML.CONTRACT, 2),
-            "position": st["position"], "auto": st["auto"], "trades": st["trades"][:30],
-            "day": view["day"], "markers": recent,
-            "series": {"t": [b["t"] for b in bars[-400:]], "fast": ind["fast"][-400:], "slow": ind["slow"][-400:]}}
+            "lots": lots, "risk_usd": round(lots * ML.risk_per_lot(p), 2),
+            "position": st["positions"].get(key), "positions": list(st["positions"].values()),
+            "auto": key in st["auto"], "autos": st["auto"], "trades": st["trades"][:30],
+            "day": view["day"], "markers": recent}
+
+
+def api_ml_scan(q):
+    syms = [s.strip().upper() for s in (q.get("symbols") or "").split(",") if s.strip()][:25]
+    tfs = [_tf(t) for t in (q.get("tfs") or "M5,M15,M30,H1,H4").split(",") if t.strip()]
+    if not syms:
+        raise ApiError("aucun symbole à scanner")
+
+    def one(sym, tf):
+        bars, p, _ = ml_asset(sym, tf, ttl=60)
+        ind = ML.indicators(bars, p)
+        i = len(bars) - 1
+        f, s = ind["fast"][i], ind["slow"][i]
+        ch = ML.checks(bars, ind, i, p) or {"buy": [], "sell": []}
+        score = {k: sum(1 for x in ch[k] if x[1]) for k in ("buy", "sell")}
+        return {"symbol": sym, "tf": tf, "signal": ML.signal_at(bars, ind, i, p),
+                "trend": "up" if f and s and f > s else "down" if f and s else None,
+                "rsi": ind["rsi"][i], "score": score, "n": len(ch["buy"]), "t": bars[i]["t"]}
+
+    futs = {_pool.submit(one, s, t): (s, t) for s in syms for t in tfs}
+    cells = []
+    for f in concurrent.futures.as_completed(futs):
+        s, t = futs[f]
+        try:
+            cells.append(f.result())
+        except Exception as e:
+            cells.append({"symbol": s, "tf": t, "error": str(e)})
+    return {"symbols": syms, "tfs": tfs, "cells": cells}
 
 
 def api_ml_backtest(body):
     try:
-        p = ML.params(dict(ml_params(), **(body.get("params") or {})))
+        p0 = ML.params(dict(ml_params(), **(body.get("params") or {})))
     except ValueError as e:
         raise ApiError(str(e))
+    sym = _sym(body) if body.get("symbol") else "GC=F"
+    tf = _tf(body.get("tf"))
+    rate = 1.0
     if body.get("csv"):
         bars = ML.parse_csv(body["csv"])
-        source = "fichier MT5 (%d bougies)" % len(bars)
+        source = "fichier MT5 %s (%d bougies)" % (body.get("csv_name") or "", len(bars))
     else:
-        bars = gold_bars(ttl=300)
-        source = "Yahoo %s M30, 60 derniers jours" % GOLD
-    if len(bars) < p["SlowEMA"] + 10:
+        bars, meta = tf_bars(sym, tf, True, ttl=300)
+        try:
+            rate = usd_rate(meta.get("currency"))
+        except ApiError:
+            pass
+        source = "Yahoo %s %s, %s" % (sym, tf, TF_DEPTH[tf])
+    if len(bars) < p0["SlowEMA"] + 10:
         raise ApiError("pas assez de bougies (%d) pour un backtest" % len(bars))
+    p = ML.for_asset(p0, sym, bars[-1]["c"], rate)
     bal = _num(body, "balance", False) or 100000.0
     res = ML.backtest(bars, p, bal)
     res["source"] = source
@@ -695,55 +831,70 @@ def api_ml_params(body):
 
 
 def api_ml_auto(body):
+    sym, tf = _sym_tf(body)
+    key = ml_key(sym, tf)
+    bars, _, _ = ml_asset(sym, tf)
     c = cfg_rules()
     with _paper_lock:
         doc = paper_load(c.get("budget") or 0)
         st = ml_state(doc)
-        st["auto"] = body.get("on") is True
-        st["last_t"] = gold_bars()[-1]["t"]    # act on bars that close from now on
+        if body.get("on") is True:
+            if key not in st["auto"]:
+                st["auto"].append(key)
+            st["last_t"][key] = bars[-1]["t"]        # act on bars that close from now on
+        else:
+            st["auto"] = [k for k in st["auto"] if k != key]
         paper_save(doc)
-    return {"auto": st["auto"]}
+    return {"auto": key in st["auto"], "autos": st["auto"]}
 
 
 def api_ml_execute(body):
     if body.get("confirm") is not True:
         raise ApiError("ordre non confirmé")
-    p = ml_params()
-    bars = gold_bars()
+    sym, tf = _sym_tf(body)
+    key = ml_key(sym, tf)
+    data = ml_asset(sym, tf)
+    bars, p, _ = data
     sig = ML.signal_at(bars, ML.indicators(bars, p), len(bars) - 1, p)
     side = body.get("side")
     if side not in ("buy", "sell") or side != sig:
-        raise ApiError("pas de signal %s valide sur la dernière bougie M30 clôturée"
-                       % {"buy": "ACHAT", "sell": "VENTE"}.get(side, ""))
+        raise ApiError("pas de signal %s valide sur la dernière bougie %s clôturée de %s"
+                       % ({"buy": "ACHAT", "sell": "VENTE"}.get(side, ""), tf, sym))
     c = cfg_rules()
     with _paper_lock:
         doc = paper_load(c.get("budget") or 0)
-        ml_step(doc, bars)
         st = ml_state(doc)
+        if key in st["positions"] or key in st["auto"]:
+            ml_step(doc, key, data)
         day = paper_view(doc, c)["day"]
         if day.get("lock"):
             raise ApiError(lock_message(day))
-        if st["position"]:
-            if st["position"]["side"] == side:
-                raise ApiError("une position %s est déjà ouverte (MaxPositions = 1)" % side)
+        pos = st["positions"].get(key)
+        if pos:
+            if pos["side"] == side:
+                raise ApiError("une position %s est déjà ouverte sur %s %s (MaxPositions = 1)" % (side, sym, tf))
             if not p["CloseAndReverse"]:
                 raise ApiError("position opposée ouverte et CloseAndReverse = false")
-            ml_close(doc, bars[-1]["c"], bars[-1]["t"], "inversion", p)
-        ml_open(doc, side, bars[-1], p, "manuel")
+            ml_close(doc, key, bars[-1]["c"], bars[-1]["t"], "inversion", p)
+        ml_open(doc, key, side, bars[-1], p, "manuel")
+        st["last_t"][key] = bars[-1]["t"]
         paper_save(doc)
-        return {"position": st["position"]}
+        return {"position": st["positions"][key]}
 
 
 def api_ml_close(body):
-    p = ml_params()
+    key = str(body.get("key") or "")
     c = cfg_rules()
     with _paper_lock:
         doc = paper_load(c.get("budget") or 0)
         st = ml_state(doc)
-        if not st["position"]:
-            raise ApiError("aucune position MINDLOCK ouverte")
-        price = quote(GOLD)["price"]
-        tr = ml_close(doc, price, int(time.time()), "clôture manuelle", p)
+        pos = st["positions"].get(key)
+        if not pos:
+            raise ApiError("aucune position MINDLOCK ouverte sur %s" % key.replace("|", " "))
+        price = quote(key.split("|")[0])["price"]
+        p = dict(ml_params(), PipSize=pos.get("pip") or 0.01, ContractSize=pos.get("contract", 1),
+                 UsdRate=pos.get("usd_rate", 1))
+        tr = ml_close(doc, key, price, int(time.time()), "clôture manuelle", p)
         paper_save(doc)
     return {"trade": tr}
 
@@ -912,9 +1063,9 @@ def api_paper(reset=False):
         else:
             doc = paper_load(c.get("budget") or 0)
             paper_sweep(doc)
-            if ml_state(doc)["position"]:
+            for key in list(ml_state(doc)["positions"]):
                 try:
-                    ml_step(doc)
+                    ml_step(doc, key)
                 except ApiError:
                     pass
         view = paper_view(doc, c)
@@ -985,7 +1136,7 @@ def api_search(q):
 
 
 GET_ROUTES = {
-    "/api/mindlock/signal": api_ml_signal,
+    "/api/mindlock/signal": api_ml_signal, "/api/mindlock/scan": api_ml_scan,
     "/api/quotes": lambda q: {"quotes": quotes([s.strip().upper() for s in (q.get("symbols") or "").split(",")
                                                 if s.strip()][:40])},
     "/api/chart": lambda q: chart(_sym(q), q.get("period") or "1D"),
