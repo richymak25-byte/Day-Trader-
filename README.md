@@ -73,6 +73,19 @@ or in the `SEC_USER_AGENT` environment variable.
 | `/trader-analyst` | Earnings Analyst | Reads earnings reports and sums up what changed. |
 | `/trader-pelosi` | Pelosi Tracker | Reads Congress's stock-trade disclosures the minute they are filed. |
 
+## The terminal
+
+A full local trading terminal sits on top of the eleven skills: macro tape,
+watchlist, candlestick chart with EMA and VWAP, a transparent bullish /
+bearish score, news, an order ticket that runs exit -> budget -> risk, the
+Time Machine, the scanner and a paper account with bracket orders.
+
+```bash
+python3 terminal/server.py        # then open http://127.0.0.1:8765
+```
+
+Paper only, standard library only. See [terminal/README.md](terminal/README.md).
+
 ## How to use it
 
 Everything lands in a `trader/` folder in your project, and each skill reads

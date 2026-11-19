@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Day Trader Terminal</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">◆</span> DAY&nbsp;TRADER <b>TERMINAL</b></div>
+  <div class="search">
+    <input id="search" placeholder="Rechercher un symbole (AAPL, Tesla, BTC-USD…)" autocomplete="off">
+    <div id="search-results" class="dropdown hidden"></div>
+  </div>
+  <div class="status">
+    <span id="regime" class="chip">MACRO …</span>
+    <span id="market" class="chip">…</span>
+    <span id="clock" class="mono"></span>
+    <span class="chip paper">PAPER</span>
+  </div>
+</header>
+<div id="tape" class="tape"></div>
+
+<main class="grid">
+  <!-- left: watchlist -->
+  <section class="panel watch">
+    <div class="ph"><h2>Watchlist</h2>
+      <form id="add-form"><input id="add-sym" placeholder="+ symbole" maxlength="15"></form>
+    </div>
+    <div id="watchlist" class="list"></div>
+    <div class="ph"><h2>Compte paper</h2><button id="reset" class="ghost sm" title="Remettre le compte à zéro">↺</button></div>
+    <div id="account" class="account"></div>
+  </section>
+
+  <!-- center: chart + tabs -->
+  <section class="center">
+    <div class="panel chartbox">
+      <div class="chead">
+        <div>
+          <div class="sym"><span id="c-sym">—</span> <span id="c-name" class="muted"></span></div>
+          <div class="px"><span id="c-price" class="mono">—</span> <span id="c-chg" class="mono"></span></div>
+        </div>
+        <div class="periods" id="periods">
+          <button data-p="1D" class="on">1J</button><button data-p="5D">5J</button><button data-p="1M">1M</button>
+          <button data-p="3M">3M</button><button data-p="6M">6M</button><button data-p="1Y">1A</button><button data-p="5Y">5A</button>
+        </div>
+      </div>
+      <div class="stats" id="c-stats"></div>
+      <div id="chart" class="chart"></div>
+      <div class="legend"><span class="l-ema9">EMA 9</span><span class="l-ema21">EMA 21</span><span class="l-vwap">VWAP</span><span class="l-plan">Plan : entrée / stop / cible</span></div>
+    </div>
+    <div class="panel tabs">
+      <nav class="tabbar" id="tabbar">
+        <button data-t="positions" class="on">Positions</button>
+        <button data-t="orders">Ordres bracket</button>
+        <button data-t="fills">Historique</button>
+        <button data-t="scanner">Scanner</button>
+        <button data-t="tm">Time Machine</button>
+        <button data-t="macro">Macro</button>
+      </nav>
+      <div class="tabbody" id="tab-positions"></div>
+      <div class="tabbody hidden" id="tab-orders"></div>
+      <div class="tabbody hidden" id="tab-fills"></div>
+      <div class="tabbody hidden" id="tab-scanner">
+        <div class="row"><button id="scan-run">Scanner la watchlist</button><span class="muted">Cassure 20 j, bull flag, reprise MM20, survente, rebond (clôtures journalières)</span></div>
+        <div id="scan-out"></div>
+      </div>
+      <div class="tabbody hidden" id="tab-tm">
+        <p class="muted">Rejoue le reste de la séance 10 000 fois à partir des bougies 5 min des 60 derniers jours, et reteste la même règle sur chaque séance passée. Utilise le plan du ticket d'ordre.</p>
+        <div class="row">
+          <label>Heure d'entrée (NY) <input id="tm-time" value="10:15 AM" size="9"></label>
+          <button id="tm-run">Lancer la Time Machine</button>
+        </div>
+        <div id="tm-out"></div>
+      </div>
+      <div class="tabbody hidden" id="tab-macro"><div id="macro-out"></div></div>
+    </div>
+  </section>
+
+  <!-- right: bias, ticket, news -->
+  <section class="side">
+    <div class="panel">
+      <div class="ph"><h2>Biais du marché</h2><button id="bias-refresh" class="ghost sm">↻</button></div>
+      <div id="bias"></div>
+    </div>
+    <div class="panel ticket">
+      <div class="ph"><h2>Ticket d'ordre</h2><span class="muted sm">long uniquement</span></div>
+      <div class="steps"><span id="st1" class="step">1 Plan</span><span id="st2" class="step">2 Taille</span><span id="st3" class="step">3 Risque</span><span id="st4" class="step">4 Envoi</span></div>
+      <div class="form">
+        <label>Entrée <input id="t-entry" type="number" step="0.01"></label>
+        <label>Stop
+          <select id="t-rule">
+            <option value="pct">% sous l'entrée</option>
+            <option value="atr">× ATR journalier</option>
+            <option value="price">Prix fixe</option>
+          </select>
+        </label>
+        <label>Paramètre <input id="t-param" type="number" step="0.01" value="1"></label>
+        <label>Cible (R) <input id="t-r" type="number" step="0.5" value="2"></label>
+      </div>
+      <button id="t-plan" class="wide">Calculer le plan</button>
+      <div id="t-out"></div>
+    </div>
+    <div class="panel">
+      <div class="ph"><h2>News</h2><span id="news-sym" class="muted sm"></span></div>
+      <div id="news" class="news"></div>
+    </div>
+  </section>
+</main>
+<footer class="foot">Données Yahoo Finance gratuites, avec délai · Compte simulé (paper), aucun ordre réel · Outil éducatif, pas un conseil financier.</footer>
+<div id="toast" class="toast hidden"></div>
+<div id="modal" class="modal hidden"><div class="mbox"><div id="mbody"></div><div class="mact"><button id="m-no" class="ghost">Annuler</button><button id="m-yes">Oui, envoyer</button></div></div></div>
+<script src="app.js"></script>
+</body>
+</html>
