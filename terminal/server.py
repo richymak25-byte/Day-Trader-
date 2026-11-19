@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Day Trader Terminal: a local web trading terminal built on the eleven skills.
+"""MINDLOCK Terminal: a local web trading terminal built on the eleven skills.
 
     python3 terminal/server.py            # then open http://127.0.0.1:8765
     python3 terminal/server.py --port 9000 --budget 10000
@@ -29,7 +29,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 STATIC = os.path.join(HERE, "static")
-UA = "Mozilla/5.0 (compatible; day-trader-terminal/1.0)"
+UA = "Mozilla/5.0 (compatible; mindlock-terminal/1.0)"
 TICKER = re.compile(r"^[\^A-Z0-9][A-Z0-9.\-=^]{0,14}$")
 
 
@@ -690,7 +690,7 @@ TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=u
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "DayTraderTerminal/1.0"
+    server_version = "MINDLOCKTerminal/1.0"
 
     def log_message(self, fmt, *args):
         if os.environ.get("TERMINAL_LOG"):
@@ -742,7 +742,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="Day Trader Terminal (paper trading, local)")
+    ap = argparse.ArgumentParser(description="MINDLOCK Terminal (paper trading, local)")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--budget", type=float, help="paper account size (default: trader/config.json or 10000)")
@@ -756,7 +756,7 @@ def main(argv=None):
     if not cfg_rules().get("budget"):
         CONFIG["budget"] = 10000.0
     srv = ThreadingHTTPServer((a.host, a.port), Handler)
-    print("Day Trader Terminal sur http://%s:%d  (compte PAPER, Ctrl+C pour quitter)" % (a.host, a.port))
+    print("MINDLOCK Terminal sur http://%s:%d  (compte PAPER, Ctrl+C pour quitter)" % (a.host, a.port))
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

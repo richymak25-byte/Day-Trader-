@@ -1,3 +1,22 @@
+# MINDLOCK Terminal
+
+Un terminal de trading complet qui tourne en local : bandeau macro, watchlist,
+graphique en bougies (EMA, VWAP), biais haussier / baissier transparent, news,
+ticket d'ordre plan -> taille -> risque, Time Machine, scanner et compte paper
+avec ordres bracket. Python standard uniquement, paper uniquement.
+
+```bash
+git clone https://github.com/richymak25-byte/MINDLOCK-Terminal-.git
+cd MINDLOCK-Terminal-
+python3 terminal/server.py        # puis ouvrir http://127.0.0.1:8765
+```
+
+Détails : [terminal/README.md](terminal/README.md). Outil éducatif, pas un conseil financier.
+
+Le terminal s'appuie sur les onze skills ci-dessous.
+
+---
+
 # The Day Trader skill
 
 11 Claude skills for day trading: scan thousands of charts, track breaking news, time every entry and exit, and replay every outcome before you risk a dollar.
@@ -73,7 +92,7 @@ or in the `SEC_USER_AGENT` environment variable.
 | `/trader-analyst` | Earnings Analyst | Reads earnings reports and sums up what changed. |
 | `/trader-pelosi` | Pelosi Tracker | Reads Congress's stock-trade disclosures the minute they are filed. |
 
-## The terminal
+## MINDLOCK Terminal
 
 A full local trading terminal sits on top of the eleven skills: macro tape,
 watchlist, candlestick chart with EMA and VWAP, a transparent bullish /

@@ -1,4 +1,4 @@
-# Day Trader Terminal
+# MINDLOCK Terminal
 
 Un terminal de trading complet, en local, construit sur les onze skills du pack.
 Python standard uniquement : rien à installer avec pip.

@@ -71,7 +71,7 @@ class Repo(unittest.TestCase):
     def test_readme_carries_the_reel_copy(self):
         with open(os.path.join(ROOT, "README.md"), encoding="utf-8") as fh:
             readme = " ".join(fh.read().split())
-        self.assertTrue(readme.startswith("# The Day Trader skill"))
+        self.assertIn("# The Day Trader skill", readme)
         for line in (ABOUT,
                      "https://github.com/Jakeschincariol/day-trader-skill install skill",
                      "/plugin marketplace add Jakeschincariol/day-trader-skill",

@@ -1,4 +1,4 @@
-/* Day Trader Terminal: front end. Talks only to the local server (server.py). */
+/* MINDLOCK Terminal: front end. Talks only to the local server (server.py). */
 "use strict";
 
 const $ = (id) => document.getElementById(id);
@@ -104,7 +104,7 @@ function renderHeader(d) {
     ["Plus haut", d.day_high], ["Plus bas", d.day_low], ["Clôture préc.", d.prev_close],
     ["Volume", d.volume != null ? d.volume.toLocaleString("fr-FR") : null], ["52 sem. haut", d.high52], ["52 sem. bas", d.low52],
   ].map(([k, v]) => `<span>${k} <b>${typeof v === "number" ? fmt(v) : v ?? "—"}</b></span>`).join("") + `<span>${esc(d.exchange || "")} · ${esc(d.currency || "")}</span>`;
-  document.title = `${d.symbol} ${fmt(d.price)} · Day Trader Terminal`;
+  document.title = `${d.symbol} ${fmt(d.price)} · MINDLOCK Terminal`;
 }
 
 /* ------------------------------------------------------------ watchlist */
