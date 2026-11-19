@@ -1243,8 +1243,58 @@ TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=u
          ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml"}
 
 
+# ---------------------------------------------------------------- access (password, for an online deployment)
+
+import hashlib  # noqa: E402
+import hmac  # noqa: E402
+
+PASSWORD = os.environ.get("TERMINAL_PASSWORD") or ""
+COOKIE = "ml_session"
+
+
+def session_token():
+    return hmac.new(hashlib.sha256(("mindlock:" + PASSWORD).encode()).digest(), b"session-v1", hashlib.sha256).hexdigest()
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "MINDLOCKTerminal/1.0"
+
+    def _authed(self):
+        if not PASSWORD:
+            return True
+        for part in (self.headers.get("Cookie") or "").split(";"):
+            k, _, v = part.strip().partition("=")
+            if k == COOKIE and hmac.compare_digest(v, session_token()):
+                return True
+        return False
+
+    def _login_page(self, error=False):
+        with open(os.path.join(STATIC, "login.html"), "rb") as fh:
+            page = fh.read()
+        if error:
+            page = page.replace(b'class="err hidden"', b'class="err"')
+        self._send(401 if error else 200, page, "text/html; charset=utf-8")
+
+    def _login(self):
+        n = min(int(self.headers.get("Content-Length") or 0), 10000)
+        form = urllib.parse.parse_qs(self.rfile.read(n).decode("utf-8", "replace"))
+        given = (form.get("password") or [""])[0]
+        if not PASSWORD or not hmac.compare_digest(given.encode(), PASSWORD.encode()):
+            time.sleep(1.5)                        # slows down guessing
+            return self._login_page(error=True)
+        secure = "; Secure" if self.headers.get("X-Forwarded-Proto") == "https" else ""
+        self.send_response(303)
+        self.send_header("Location", "/")
+        self.send_header("Set-Cookie", "%s=%s; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000%s" % (COOKIE, session_token(), secure))
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def _logout(self):
+        self.send_response(303)
+        self.send_header("Location", "/")
+        self.send_header("Set-Cookie", "%s=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0" % COOKIE)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def log_message(self, fmt, *args):
         if os.environ.get("TERMINAL_LOG"):
@@ -1269,6 +1319,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         u = urllib.parse.urlparse(self.path)
+        if u.path == "/healthz":
+            return self._send(200, {"ok": True})
+        if not self._authed():
+            if u.path.startswith("/api/"):
+                return self._send(401, {"error": "connexion requise"})
+            return self._login_page()
+        if u.path == "/logout":
+            return self._logout()
         q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}
         if u.path in GET_ROUTES:
             return self._api(GET_ROUTES[u.path], q)
@@ -1281,6 +1339,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         u = urllib.parse.urlparse(self.path)
+        if u.path == "/login":
+            return self._login()
+        if not self._authed():
+            return self._send(401, {"error": "connexion requise"})
         if u.path not in POST_ROUTES:
             return self._send(404, {"error": "introuvable"})
         n = int(self.headers.get("Content-Length") or 0)
@@ -1297,8 +1359,8 @@ class Handler(BaseHTTPRequestHandler):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="MINDLOCK Terminal (paper trading, local)")
-    ap.add_argument("--host", default="127.0.0.1")
-    ap.add_argument("--port", type=int, default=8765)
+    ap.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
+    ap.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8765)))
     ap.add_argument("--budget", type=float, help="paper account size (default: trader/config.json or 10000)")
     ap.add_argument("--risk-pct", type=float, help="risk per trade, %% of the account (default 0.5)")
     ap.add_argument("--loss-lock", type=float, help="daily loss lock, %% of the account (default 1.0)")
@@ -1315,6 +1377,9 @@ def main(argv=None):
     CONFIG["budget"] = a.budget
     if not cfg_rules().get("budget"):
         CONFIG["budget"] = 10000.0
+    if a.host not in ("127.0.0.1", "localhost", "::1") and not PASSWORD:
+        print("ATTENTION : le terminal est ouvert au réseau sans mot de passe. "
+              "Définis TERMINAL_PASSWORD pour le protéger.")
     srv = ThreadingHTTPServer((a.host, a.port), Handler)
     threading.Thread(target=ml_loop, daemon=True).start()
     print("MINDLOCK Terminal sur http://%s:%d  (compte PAPER, Ctrl+C pour quitter)" % (a.host, a.port))

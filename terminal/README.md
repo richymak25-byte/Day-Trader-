@@ -68,6 +68,19 @@ Les données Yahoo (l'or = contrat à terme GC=F) sont proches de ton courtier, 
 - Les clôtures de positions restent toujours possibles.
 - Ces valeurs viennent des paramètres MINDLOCK (`RiskPercent`, `DailyLossPercent`, `DailyProfitPercent`, `UseDailyLock`), modifiables dans l'onglet Backtest.
 
+## En ligne (Render)
+
+Le terminal peut tourner sur un serveur : il lit `PORT` et `HOST` dans l'environnement et,
+si `TERMINAL_PASSWORD` est défini, demande un mot de passe (session de 30 jours, cookie HttpOnly).
+
+- Commande de démarrage : `python3 terminal/server.py --host 0.0.0.0`
+- Vérification de santé : `/healthz`
+- Variable obligatoire en ligne : `TERMINAL_PASSWORD`
+
+Sur l'offre gratuite de Render, le service s'endort après 15 minutes sans visite et son disque
+est effacé à chaque redémarrage : le compte paper repart de zéro et le mode auto s'arrête.
+Une offre payante avec disque persistant garde le compte et fait tourner le mode auto en continu.
+
 ## Sécurité
 
 - **Paper uniquement.** Le terminal n'envoie aucun ordre à un vrai courtier.

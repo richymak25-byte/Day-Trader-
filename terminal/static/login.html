@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07080b">
+<meta name="robots" content="noindex">
+<title>MINDLOCK Terminal · Connexion</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23f3dfa8'/%3E%3Cstop offset='1' stop-color='%23b8893c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='%2307080b'/%3E%3Cpath d='M11 14v-3a5 5 0 0 1 10 0v3' fill='none' stroke='url(%23g)' stroke-width='2.4' stroke-linecap='round'/%3E%3Crect x='8' y='14' width='16' height='12' rx='3' fill='url(%23g)'/%3E%3Cpath d='M11 23l3-3 2 2 5-5' fill='none' stroke='%2307080b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #07080b; --line: rgba(255,255,255,.08); --text: #eceef3; --muted: #8b92a1; --gold: #d9b56a; --gold-2: #f3dfa8; --gold-3: #b8893c; --sell: #ff5c7c; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; display: grid; place-items: center; padding: 24px 16px; font: 14px/1.5 "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text);
+    background: radial-gradient(900px 500px at 50% -10%, rgba(217,181,106,.14), transparent 60%), radial-gradient(700px 500px at 100% 100%, rgba(125,211,252,.05), transparent 60%), var(--bg); }
+  .card { width: 100%; max-width: 380px; padding: 34px 28px 28px; border-radius: 22px; border: 1px solid rgba(217,181,106,.22);
+    background: linear-gradient(180deg, rgba(27,31,42,.85), rgba(14,16,22,.9)); box-shadow: 0 40px 90px -40px rgba(0,0,0,.9), 0 1px 0 rgba(255,255,255,.05) inset; backdrop-filter: blur(14px); }
+  .logo { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-bottom: 26px; }
+  .logo svg { width: 58px; height: 58px; filter: drop-shadow(0 10px 26px rgba(217,181,106,.4)); }
+  .word { font-weight: 800; letter-spacing: .26em; font-size: 18px; text-align: center; line-height: 1.1; }
+  .word small { display: block; font-size: 10px; letter-spacing: .5em; color: var(--gold); font-weight: 600; margin-top: 6px; }
+  label { display: block; font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 7px; }
+  input { width: 100%; font: inherit; color: var(--text); padding: 13px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.04); outline: none; transition: .15s; }
+  input:focus { border-color: rgba(217,181,106,.6); box-shadow: 0 0 0 3px rgba(217,181,106,.14); background: rgba(217,181,106,.05); }
+  button { width: 100%; margin-top: 16px; padding: 13px; border: 0; border-radius: 12px; font: 600 14px inherit; font-family: inherit; cursor: pointer; color: #1a1408;
+    background: linear-gradient(135deg, var(--gold-2), var(--gold) 45%, var(--gold-3)); box-shadow: 0 12px 30px -12px rgba(217,181,106,.75), 0 1px 0 rgba(255,255,255,.4) inset; }
+  button:hover { filter: brightness(1.06); }
+  .err { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 12.5px; color: #ffc2cf; background: rgba(255,92,124,.12); border: 1px solid rgba(255,92,124,.3); }
+  .hidden { display: none; }
+  .foot { margin-top: 22px; text-align: center; font-size: 11px; color: #5c6272; }
+</style>
+</head>
+<body>
+  <form class="card" method="post" action="/login">
+    <div class="logo">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3dfa8"/><stop offset="1" stop-color="#b8893c"/></linearGradient></defs>
+        <path d="M11 14v-3a5 5 0 0 1 10 0v3" fill="none" stroke="url(#g)" stroke-width="2.4" stroke-linecap="round"/><rect x="8" y="14" width="16" height="12" rx="3" fill="url(#g)"/>
+        <path d="M11 23l3-3 2 2 5-5" fill="none" stroke="#07080b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="word">MINDLOCK<small>TERMINAL</small></div>
+    </div>
+    <label for="password">Mot de passe</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+    <button type="submit">Ouvrir le terminal</button>
+    <div class="err hidden">Mot de passe incorrect.</div>
+    <div class="foot">Compte simulé (paper) · Outil éducatif, pas un conseil financier.</div>
+  </form>
+</body>
+</html>
