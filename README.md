@@ -143,6 +143,18 @@ python3 trader-analyst/facts.py TSLA                                   # quarter
 python3 trader-pelosi/ptr.py index --member pelosi                     # her PTRs this year
 ```
 
+### Chart Lab
+
+Free charts with no limits, on your own machine: unlimited indicators,
+drawings saved to disk, 1, 2 or 4 charts, bar-by-bar replay, the scanner's
+setups, and a Plan button that runs trader-exit, the Time Machine and
+trader-budget on a trade you mark on the chart. It never places an order.
+French UI. Details in [chart-lab/README.md](chart-lab/README.md).
+
+```bash
+python3 chart-lab/server.py --open                                     # http://127.0.0.1:8765
+```
+
 ```bash
 python3 -m unittest discover -s tests -v
 ```
@@ -210,6 +222,7 @@ trader-broker/      SKILL.md, ticket.py, claude_desktop_config.example.json
 trader-alerts/      SKILL.md, alerts.py, alerts.example.json
 trader-analyst/     SKILL.md, facts.py, metrics.example.json
 trader-pelosi/      SKILL.md, ptr.py
+chart-lab/          server.py, static/ (local charts, KLineChart Apache 2.0)
 tests/              unittest suite + offline fixtures
 ```
 

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chart Lab</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23101828'/%3E%3Cpath d='M3 11l3-4 3 2 4-5' stroke='%2334d399' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 12l3.5-4.5 3 2.2L14 3" /></svg>Chart Lab</div>
+  <form id="symbol-form" class="symbol-form" autocomplete="off">
+    <input id="symbol-input" list="symbol-suggest" placeholder="Symbole (TSLA, AAPL, BTC-USD)" aria-label="Symbole" spellcheck="false">
+    <datalist id="symbol-suggest"></datalist>
+  </form>
+  <div class="seg" id="interval-seg" role="group" aria-label="Intervalle"></div>
+  <div class="seg" id="grid-seg" role="group" aria-label="Disposition"></div>
+  <div class="spacer"></div>
+  <button class="btn ghost" id="replay-btn" title="Relecture bougie par bougie">Relecture</button>
+  <button class="btn ghost icon" id="theme-btn" title="Thème clair / sombre" aria-label="Thème">
+    <svg viewBox="0 0 16 16"><path d="M8 2a6 6 0 1 0 6 6 4.5 4.5 0 0 1-6-6z"/></svg>
+  </button>
+  <button class="btn ghost icon" id="panel-btn" title="Panneau" aria-label="Afficher le panneau">
+    <svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M10 3v10"/></svg>
+  </button>
+</header>
+
+<div class="main">
+  <nav class="tools" id="tools" aria-label="Outils de dessin"></nav>
+  <section class="workspace">
+    <div id="grid" class="grid g1"></div>
+    <div id="replay-bar" class="replay-bar" hidden>
+      <span id="replay-hint">Clique sur une bougie pour démarrer la relecture.</span>
+      <div class="replay-ctrl" id="replay-ctrl" hidden>
+        <button class="btn" id="rp-play" title="Lecture / pause">Lecture</button>
+        <button class="btn ghost" id="rp-step" title="Bougie suivante">+1 bougie</button>
+        <label>Vitesse
+          <select id="rp-speed"><option value="1000">1x</option><option value="500" selected>2x</option><option value="200">5x</option><option value="80">10x</option></select>
+        </label>
+        <span id="rp-pos" class="mono"></span>
+      </div>
+      <button class="btn ghost" id="rp-exit">Quitter</button>
+    </div>
+  </section>
+
+  <aside class="panel" id="panel">
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="ind" class="on">Indicateurs</button>
+      <button role="tab" data-tab="watch">Listes</button>
+      <button role="tab" data-tab="plan">Plan</button>
+      <button role="tab" data-tab="alerts">Alertes</button>
+    </div>
+
+    <div class="tab" data-tab="ind">
+      <h3>Sur le prix</h3>
+      <div id="ind-main" class="ind-list"></div>
+      <h3>Sous le graphique</h3>
+      <div id="ind-sub" class="ind-list"></div>
+      <p class="muted small">Aucune limite : coche autant d'indicateurs que tu veux. Les paramètres se séparent par des virgules.</p>
+    </div>
+
+    <div class="tab" data-tab="watch" hidden>
+      <h3>Ma liste</h3>
+      <form id="watch-form" class="row">
+        <input id="watch-input" placeholder="Ajouter un symbole" spellcheck="false">
+        <button class="btn">Ajouter</button>
+      </form>
+      <ul id="watch-mine" class="list"></ul>
+      <h3>Scanner <span id="scan-asof" class="muted small"></span></h3>
+      <ul id="watch-scan" class="list"></ul>
+      <p class="muted small" id="scan-empty">Pas encore de résultats. Demande à Claude « scan the market » (/trader-scanner) : les setups apparaîtront ici.</p>
+    </div>
+
+    <div class="tab" data-tab="plan" hidden>
+      <p class="muted small">Achat seulement. Marque ton entrée, ton stop et ton objectif sur le graphique, puis lance le plan : trader-exit, la Time Machine (10 000 séances simulées) et trader-budget tournent sur ta machine.</p>
+      <div class="field"><label for="pl-entry">Entrée</label><input id="pl-entry" inputmode="decimal"><button class="btn ghost pick" data-pick="pl-entry" title="Choisir sur le graphique">Choisir</button></div>
+      <div class="field"><label for="pl-stop">Stop</label><input id="pl-stop" inputmode="decimal"><button class="btn ghost pick" data-pick="pl-stop">Choisir</button></div>
+      <div class="field"><label for="pl-target">Objectif</label><input id="pl-target" inputmode="decimal" placeholder="vide = 2R"><button class="btn ghost pick" data-pick="pl-target">Choisir</button></div>
+      <div class="row">
+        <button class="btn ghost" id="pl-last">Entrée au dernier prix</button>
+        <button class="btn primary" id="pl-run">Planifier</button>
+      </div>
+      <div id="pl-out" class="plan-out"></div>
+    </div>
+
+    <div class="tab" data-tab="alerts" hidden>
+      <h3>Alerte de prix</h3>
+      <div class="field"><label for="al-price">Prix</label><input id="al-price" inputmode="decimal"><button class="btn ghost pick" data-pick="al-price">Choisir</button></div>
+      <div class="row">
+        <button class="btn" data-alert="above">Au-dessus</button>
+        <button class="btn" data-alert="below">En dessous</button>
+      </div>
+      <p class="muted small">Les alertes vont dans trader/alerts.json. Elles sonnent quand Claude lance /trader-alerts check (par exemple avec /loop 5m). Une alerte n'est jamais un ordre.</p>
+      <h3>Règles enregistrées</h3>
+      <ul id="al-list" class="list"></ul>
+    </div>
+  </aside>
+</div>
+
+<footer class="foot">
+  <span id="status" class="muted"></span>
+  <span class="muted">Données Yahoo gratuites et différées. Pas un conseil financier. Aucun ordre n'est passé ici.</span>
+</footer>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="/static/vendor/klinecharts.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
