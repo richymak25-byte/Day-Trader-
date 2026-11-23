@@ -1,0 +1,28 @@
+{
+  "autopilot": {
+    "enabled": false,
+    "symbols": [
+      "SPY",
+      "QQQ",
+      "AAPL",
+      "MSFT",
+      "NVDA",
+      "AMD",
+      "META",
+      "AMZN",
+      "GOOGL",
+      "TSLA"
+    ],
+    "setup": "orb",
+    "or_minutes": 15,
+    "interval": "5m",
+    "stop": "or-mid",
+    "target": "2R",
+    "min_edge": 0.0,
+    "min_hist_trades": 0,
+    "min_hist_avg_r": null,
+    "replays": 2000,
+    "max_trigger_age_min": 10,
+    "max_entries_per_tick": 1
+  }
+}

@@ -72,6 +72,7 @@ or in the `SEC_USER_AGENT` environment variable.
 | `/trader-alerts` | Price Alerts | Rings when a price, a stop or the opening bell hits. |
 | `/trader-analyst` | Earnings Analyst | Reads earnings reports and sums up what changed. |
 | `/trader-pelosi` | Pelosi Tracker | Reads Congress's stock-trade disclosures the minute they are filed. |
+| `/trader-autopilot` | Paper Autopilot | Runs the whole chain unattended on Alpaca's **paper** account, so you can judge a strategy on real results before risking a dollar. |
 
 ## How to use it
 
@@ -82,6 +83,7 @@ what the last one wrote:
 scanner -> news -> entry -> exit -> timemachine -> budget -> risk -> broker   (one trade)
 alerts: stop, target, flat by the close                                       (while it is open)
 news / analyst / pelosi                                                        (on a schedule)
+autopilot: entry -> exit -> timemachine -> budget -> risk -> paper order      (unattended, paper only)
 ```
 
 An example, the trade in the reel: Tesla, Monday October 19 2026, real data.
@@ -141,7 +143,23 @@ python3 trader-alerts/alerts.py add --from-plan                        # stop, t
 python3 trader-alerts/alerts.py check                                  # rings what hit, once
 python3 trader-analyst/facts.py TSLA                                   # quarters, growth, EPS
 python3 trader-pelosi/ptr.py index --member pelosi                     # her PTRs this year
+python3 trader-autopilot/autopilot.py status                           # safety OK / STOP, today's trades
+python3 trader-autopilot/autopilot.py loop --every 60                  # unattended, PAPER account only
 ```
+
+### The autopilot (paper only)
+
+`/trader-autopilot` is the one skill that places orders without a yes per
+order, and it pays for that by never touching real money: it only talks to
+`paper-api.alpaca.markets`, a constant with no switch. Every minute it checks
+your symbols for a fresh opening-range breakout, plans the stop and target,
+keeps the trade only if the Time Machine gives the target the better odds
+(`min_edge`), sizes it, runs `/trader-risk`, and places the bracket on the
+paper account. It never trades a symbol twice a day and sells what is left at
+`flat_by`. Turn it on with `"autopilot": {"enabled": true}` in
+`trader/config.json` (the block is in `trader-autopilot/autopilot.example.json`) and paper keys
+in `ALPACA_API_KEY` / `ALPACA_SECRET_KEY`. Everything it decides goes to
+`trader/state/autopilot.jsonl`.
 
 ```bash
 python3 -m unittest discover -s tests -v
