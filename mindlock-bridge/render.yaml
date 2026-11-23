@@ -1,0 +1,17 @@
+# Render Blueprint for the MINDLOCK webhook bridge.
+# In Render: New > Blueprint, pick this repo, Blueprint path: mindlock-bridge/render.yaml
+services:
+  - type: web
+    name: mindlock-bridge
+    runtime: python
+    rootDir: mindlock-bridge
+    plan: starter            # free also works, but sleeps when MT5 is off (see README)
+    buildCommand: pip install -r requirements.txt
+    startCommand: python3 server.py
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: BRIDGE_TOKEN
+        generateValue: true  # Render generates a long secret; copy it into the EA and the TV URL
+      - key: PYTHON_VERSION
+        value: 3.12.7
